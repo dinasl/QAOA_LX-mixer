@@ -5,11 +5,6 @@ import json
 # from scipy.special import comb
 import sys
 
-from PauliString import *
-from PauliOperations import *
-# from Stabilizers import *
-# from GroupGraph import *
-
 import math
 #import openquantumcomputing._rust
 
@@ -30,11 +25,6 @@ class Mixer:
         self.base_solution = []
         self.base_cost=0
         self.base_nedges=0
-        self.compute_commuting_pairs()
-
-        # self.compute_family_of_graphs(blacklist=blacklist)
-
-        # Graph stuff
 
     def setB(self, B, sort):
         if isinstance(B, set):
@@ -58,11 +48,3 @@ class Mixer:
         self.B = []
         for b in B:
             self.B.append(BitString(1,b))
-            
-    def compute_commuting_pairs(self):
-        self.commuting_pairs = {}
-        for i in range(self.nB):
-            for j in range(i + 1, self.nB):
-                Xij = Xoperator(self.B[i], self.B[j]).P
-                self.commuting_pairs[Xij] = self.commuting_pairs.get(Xij, [])
-                self.commuting_pairs[Xij].append([i, j])
