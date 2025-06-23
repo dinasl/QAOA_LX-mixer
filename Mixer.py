@@ -1,21 +1,20 @@
-import itertools
+# import itertools
 import networkx as nx
 import numpy as np
-import json
+# import json
 # from scipy.special import comb
-import sys
+# import sys
 from dataclasses import dataclass
 
-import math
+# import math
 #import openquantumcomputing._rust
 
-from sympy import *
-from sympy.physics.paulialgebra import Pauli, evaluate_pauli_product
+# from sympy import *
+# from sympy.physics.paulialgebra import Pauli, evaluate_pauli_product
 #from sympy.physics.quantum import TensorProduct
 
 #from networkx.algorithms.approximation import clique
 
-#
 @dataclass
 class MixerGraph:
     
@@ -39,6 +38,8 @@ class LXMixer:
         self.base_solution = []
         self.base_cost=0
         self.base_nedges=0
+        
+        #main_loop()
 
     def setB(self, B, sort):
         if isinstance(B, set):
@@ -63,6 +64,23 @@ class LXMixer:
         for b in B:
             self.B.append(BitString(1,b))
             
+    #def main_loop(self):
+        # compute family of valid mixer graphs compute_family_of_valid_mixergraphs()
+        #if choose_n: b_func, heuristic stuff
+            #n = 1
+            #connected = False
+            #while not connected:
+                #check_all_combinations(self.compute_family_of_valid_mixergraphs(), n) -> list[MixerGraph]
+                    #(check if any connected)
+                    #if len(list) != 0: connected = True)
+                #n+=1
+        #compute all subgraphs MixerGraphs (include all non-connected nodes in the subgraphs, nx.Graph.subgraph) compute_all_subgraphs()
+        #check_all_combinations
+        #cost for all combinations
+        #take lowest --> output MixerGraph with lowest cost; min(list[MixerGraph], key=lambda x: x.cost)
+        
+        #projector
+            
     def compute_family_of_valid_mixergraphs(self):
         """
         Computes the family of valid mixers for the feasible set B.
@@ -72,42 +90,27 @@ class LXMixer:
         Avoid making duplicates (make struct in one go)? If not, set(). 
         """
         pass
+
+    def compute_all_subgraphs(mixergraph_list):
+        
+        """
+        Args:
+            graph_list (list[MixerGraphs]]): List of MixerGraphs structs.
+        """
+        pass
     
-#def main loop
-    # compute family of valid mixer graphs
-    #if choose_n: b_func
-        #n = 1
-        #connected = False
-        #while not connected:
-            #all combinations of n graphs
-            #check if any connected:
-                #append to list, connected = True
-            #n+=1
-    #compute all subgraphs MixerGraphs (with projectors?) compute_all_subgraphs()
-    #check all connected combinations with cost
-    #take lowest --> output MixerGraph with lowest cost
-    
-    #projector
+    def check_all_combinations(mixergraph_list, n=None):
+        
+        pass
 
-def compute_all_subgraphs(mixergraph_list):
-    
-    """
-    Args:
-        graph_list (list[MixerGraphs]]): List of MixerGraphs structs.
-    """
-    pass
-
-def cost():
-    pass
-
-def check_if_orbit():
-    pass
-
-def algorithm_1():
-    pass
-
-def linalg_approach():
-    pass
-
-def stabilizer_approach():
-    pass
+    def cost():
+        """
+        Cost function for the mixer graph.
+        
+        Args:
+            mixergraph (MixerGraph): The MixerGraph to compute the cost for.
+            
+        Returns:
+            int: The number of CNOTs associated with the mixer graph.
+        """
+        pass
