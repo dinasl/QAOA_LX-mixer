@@ -23,9 +23,9 @@ def check_if_orbit(B):
         
         #checks if it maps all states to another
         if not all((X_1 ^ state) in B_set for state in B):
-            return False
+            return False, None
     
-    return True
+    return True, tried_X
     #could also make a graph with nodes B, and add edges with X's...(?)
     """
     #brute force:
@@ -40,21 +40,6 @@ def check_if_orbit(B):
     return True
     """
 
-def find_orbit_X_string(B):
-    #same as in check_orbit, but doesn't check that the orbit is found, just finds all X-strings that takes us from
-    #one state to another in B
-
-    #TODO check if B actually creates an orbit?
-    B_set = set(B)
-    tried_X = set()
-
-    for i in range(len(B)-1):
-        X_1 = B[i]^B[i+1]
-        if X_1 in tried_X:
-            continue
-        tried_X.add(X_1)
-    return tried_X
-
 def compute_minimal_generating_set(B, n):
     """
     Computes the minimal generating set of a stabilizer group that contains the orbit B.
@@ -67,16 +52,20 @@ def compute_minimal_generating_set(B, n):
         list[int]: List of Pauli strings (int representation) that form the minimal generating set.
     """
     #TODO check if B actually creates an orbit?
-    orbit = find_orbit_X_string(B)
+    if check_if_orbit(B)[0]:
+        orbit = check_if_orbit(B)[1]
     
-    #use seed B[0] to get G0 which is on the form G0 = {(+-1, IZII...), ...} where Z is represented by 1 and I by 0
+    #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where Z is represented by 1 and I by 0
+    G0 = [((-1 if (B[0] >> (n - 1 - i)) & 1 else 1), 1 << (n - 1 - i)) for i in range(n)]
+
+    #selects all of the elements of G that is a z-string (without +-1)
+    G0_elements = [t[1] for t in G0]
     
-    """
     #iteration process for algoritm 1
     for x_string in orbit:
-        anti_commuting = x_string & G0
-    """
-    return G0
+        #finds if it commutes or not with the x-string, if the element has even number of 1s -> commutes, odd numbers -> anti-commutes
+        anti_commuting = [x_string & z_string for z_string in G0_elements]
+    
 #def compute_restricted_projector_linalg(stabilizer_group, B):
     """
     Computes the restricted projector using linear algebra approach.
