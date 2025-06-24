@@ -1,4 +1,4 @@
-# Imports
+import numpy as np
 
 def check_if_orbit(B):
     """
@@ -10,22 +10,106 @@ def check_if_orbit(B):
     Returns:
         bool: True if B is an orbit of a stabilizer group, False otherwise.
     """
-    pass
+    #TODO not completely sure it includes absolutely all cases...
+    #This loop finds if there is an orbit when B=2^n states, iterates over all the possible X's and states
+    B_set = set(B)
+    tried_X = set()
 
-def compute_minimal_generating_set():
+    for i in range(len(B)-1):
+        X_1 = B[i]^B[i+1] #making X_1 = z1 ^ z2
+        if X_1 in tried_X:
+            continue
+        tried_X.add(X_1)
+        
+        #checks if it maps all states to another
+        if not all((X_1 ^ state) in B_set for state in B):
+            return False, None
+    
+    return True, tried_X
+    #could also make a graph with nodes B, and add edges with X's...(?)
+    """
+    #brute force:
+    for i in range(len(B)-1):
+        X_1 = B[i]^B[i+1] #making X_1 = z1 ^ z2
+        
+        #checks if it maps all, need a way to minimize this one so that it doesn't iterate over the same ones
+        for state in B:                     #TODO at the very least we don't need to check the ones that 
+            if (X_1 ^ state) not in B:
+                return False
+    
+    return True
+    """
+
+def compute_minimal_generating_set(B, n):
     """
     Computes the minimal generating set of a stabilizer group that contains the orbit B.
     
     Args:
-        B (list[int]): Feasible set of bitstrings (int representations) from the computational basis.
+        B (list[int]): Feasible set of bitstrings (int representations) from the computational basis that is an orbit.
+        n (int): number of qubits
     
     Returns:
         list[int]: List of Pauli strings (int representation) that form the minimal generating set.
     """
-    pass
+    #TODO what if it is not true?
+    if check_if_orbit(B)[0]:
+        orbit = check_if_orbit(B)[1]
+    
+    #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where Z is represented by 1 and I by 0
+    G0 = [((-1 if (B[0] >> (n - 1 - i)) & 1 else 1), 1 << (n - 1 - i)) for i in range(n)]
 
-def compute_restricted_projector_linalg(stabilizer_group, B):
+    #selects all of the elements of G that is a z-string (without +-1)
+    G0_elements = [t[1] for t in G0]
+    G0_signs = [t[0] for t in G0]
+    #iteration process for algoritm 1
+    for x_string in orbit:
+        #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
+        commutation_string = [x_string & z_string for z_string in G0_elements]
+        for i in range(len(commutation_string)):
+            #using Brian Kernighan's algorithm to check parity (commutation/anti-commutation), parity = 0 if even (commutes), and parity = 1 if odd (anti-commutes)
+            parity = 0
+            while i:
+                parity ^= 1
+                i &= i - 1 
+            
+            
+        
+        #TODO update G0_elements (and G0_signs?), so that G_new = ..., and then G0 = G_new for it to work for the next iteration
+            
+def compute_restricted_projector_stabilizer(minimal_generating_set, B):
     """
+    Computes the restricted projector using the stabilizer formalism approach.
+    
+    Args:
+        minimal generating set of stabilizer_group (list(tuples[int])): List of Pauli strings (int representation) that form the stabilizer group.
+        B (list[int]): Feasible set of bitstrings (int representations) from the computational basis.  
+    
+    Returns:
+        ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
+    """
+    matrix = np.zeros((len(B), len(minimal_generating_set)))
+    #finding elements for matrix
+    for i in B:
+        matrix_row = [i & stabilizer for stabilizer in minimal_generating_set]
+        #using Brian Kernighans's algorithm to check parity #TODO ¨
+
+        matrix[i] = matrix_row
+    print(matrix)
+
+B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
+#compute_minimal_generating_set(B, 4)
+B1 = [0b11101, 0b01010, 0b10011, 0b00110]
+G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
+
+
+
+
+
+
+
+    
+#def compute_restricted_projector_linalg(stabilizer_group, B):
+"""
     Computes the restricted projector using linear algebra approach.
     
     Args:
@@ -34,18 +118,4 @@ def compute_restricted_projector_linalg(stabilizer_group, B):
     
     Returns:
         ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
-    """
-    pass
-
-def compute_restricted_projector_stabilizer():
-    """
-    Computes the restricted projector using the stabilizer formalism approach.
-    
-    Args:
-        stabilizer_group (list[int]): List of Pauli strings (int representation) that form the stabilizer group.
-        B (list[int]): Feasible set of bitstrings (int representations) from the computational basis.  
-    
-    Returns:
-        ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
-    """
-    pass
+"""
