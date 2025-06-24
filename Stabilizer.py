@@ -68,9 +68,10 @@ def compute_minimal_generating_set(B, n):
         for i in range(len(commutation_string)):
             #using Brian Kernighan's algorithm to check parity (commutation/anti-commutation), parity = 0 if even (commutes), and parity = 1 if odd (anti-commutes)
             parity = 0
-            while n:
+            while i:
                 parity ^= 1
-                n &= n - 1 
+                i &= i - 1 
+            
             
         
         #TODO update G0_elements (and G0_signs?), so that G_new = ..., and then G0 = G_new for it to work for the next iteration
@@ -91,7 +92,7 @@ def compute_restricted_projector_stabilizer(minimal_generating_set, B):
     for i in B:
         matrix_row = [i & stabilizer for stabilizer in minimal_generating_set]
         #using Brian Kernighans's algorithm to check parity #TODO ¨
-        
+
         matrix[i] = matrix_row
     print(matrix)
 
