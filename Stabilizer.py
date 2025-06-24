@@ -1,4 +1,4 @@
-# Imports
+import numpy as np
 
 def check_if_orbit(B):
     """
@@ -75,11 +75,40 @@ def compute_minimal_generating_set(B, n):
         
         #TODO update G0_elements (and G0_signs?), so that G_new = ..., and then G0 = G_new for it to work for the next iteration
             
-            
+def compute_restricted_projector_stabilizer(minimal_generating_set, B):
+    """
+    Computes the restricted projector using the stabilizer formalism approach.
+    
+    Args:
+        minimal generating set of stabilizer_group (list(tuples[int])): List of Pauli strings (int representation) that form the stabilizer group.
+        B (list[int]): Feasible set of bitstrings (int representations) from the computational basis.  
+    
+    Returns:
+        ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
+    """
+    matrix = np.zeros((len(B), len(minimal_generating_set)))
+    #finding elements for matrix
+    for i in B:
+        matrix_row = [i & stabilizer for stabilizer in minimal_generating_set]
+        #using Brian Kernighans's algorithm to check parity #TODO ¨
+        
+        matrix[i] = matrix_row
+    print(matrix)
+
+B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
+#compute_minimal_generating_set(B, 4)
+B1 = [0b11101, 0b01010, 0b10011, 0b00110]
+G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
+
+
+
+
+
+
 
     
 #def compute_restricted_projector_linalg(stabilizer_group, B):
-    """
+"""
     Computes the restricted projector using linear algebra approach.
     
     Args:
@@ -88,20 +117,4 @@ def compute_minimal_generating_set(B, n):
     
     Returns:
         ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
-    """
-
-def compute_restricted_projector_stabilizer(minimal_generating_set, B):
-    """
-    Computes the restricted projector using the stabilizer formalism approach.
-    
-    Args:
-        minimal generating set of stabilizer_group (list[int]): List of Pauli strings (int representation) that form the stabilizer group.
-        B (list[int]): Feasible set of bitstrings (int representations) from the computational basis.  
-    
-    Returns:
-        ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
-    """
-    pass
-
-B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
-compute_minimal_generating_set(B, 4)
+"""
