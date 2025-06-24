@@ -51,7 +51,7 @@ def compute_minimal_generating_set(B, n):
     Returns:
         list[int]: List of Pauli strings (int representation) that form the minimal generating set.
     """
-    #TODO check if B actually creates an orbit?
+    #TODO what if it is not true?
     if check_if_orbit(B)[0]:
         orbit = check_if_orbit(B)[1]
     
@@ -60,11 +60,23 @@ def compute_minimal_generating_set(B, n):
 
     #selects all of the elements of G that is a z-string (without +-1)
     G0_elements = [t[1] for t in G0]
-    
+    G0_signs = [t[0] for t in G0]
     #iteration process for algoritm 1
     for x_string in orbit:
-        #finds if it commutes or not with the x-string, if the element has even number of 1s -> commutes, odd numbers -> anti-commutes
-        anti_commuting = [x_string & z_string for z_string in G0_elements]
+        #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
+        commutation_string = [x_string & z_string for z_string in G0_elements]
+        for i in range(len(commutation_string)):
+            #using Brian Kernighan's algorithm to check parity (commutation/anti-commutation), parity = 0 if even (commutes), and parity = 1 if odd (anti-commutes)
+            parity = 0
+            while n:
+                parity ^= 1
+                n &= n - 1 
+            
+        
+        #TODO update G0_elements (and G0_signs?), so that G_new = ..., and then G0 = G_new for it to work for the next iteration
+            
+            
+
     
 #def compute_restricted_projector_linalg(stabilizer_group, B):
     """
@@ -92,4 +104,4 @@ def compute_restricted_projector_stabilizer(minimal_generating_set, B):
     pass
 
 B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
-print(compute_minimal_generating_set(B, 4))
+compute_minimal_generating_set(B, 4)
