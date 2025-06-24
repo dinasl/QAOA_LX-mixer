@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 
 def check_if_orbit(B):
     """
@@ -58,25 +59,49 @@ def compute_minimal_generating_set(B, n):
     #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where Z is represented by 1 and I by 0
     G0 = [((-1 if (B[0] >> (n - 1 - i)) & 1 else 1), 1 << (n - 1 - i)) for i in range(n)]
 
-    #selects all of the elements of G that is a z-string (without +-1)
-    G0_elements = [t[1] for t in G0]
-    G0_signs = [t[0] for t in G0]
+    
+    
+    
     #iteration process for algoritm 1
     for x_string in orbit:
+        G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
+        G0_signs = [t[0] for t in G0]       #selects the +-1 value
+
         #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
         commutation_string = [x_string & z_string for z_string in G0_elements]
-        for i in range(len(commutation_string)):
-            #using Brian Kernighan's algorithm to check parity (commutation/anti-commutation), parity = 0 if even (commutes), and parity = 1 if odd (anti-commutes)
-            parity = 0
-            while i:
-                parity ^= 1
-                i &= i - 1 
-            
-            
         
-        #TODO update G0_elements (and G0_signs?), so that G_new = ..., and then G0 = G_new for it to work for the next iteration
+        I_c = []
+        I_d = []
+        for index, j in enumerate(commutation_string):      #iterates over the elements (binary strings)
+            parity_of_string = parity(j)                    #checks the parity of each string
+            if parity_of_string == 0:
+                I_c.append(index) #appends the position of the commuting string
+            else:
+                I_d.append(index) #appends the position of the anti-commuting string
+
+        #creates the anti-commuting pairs
+        I_d_2 = list(itertools.combinations(I_d, 2)) 
+        
+        #only iterating over necessary pairs and stores the relevant ones
+        elements_included = len(G0_elements) - len(I_c) - 1
+        I_d_2_shortened_Z = []
+
+        if len(I_d_2) > 0: #checking that we have anti-commuting pairs
+            for i in range(elements_included): 
+                #creates a tuple with (+-1, ZiZj) for anti-commuting pairs 
+                #+-1 is the signs multiplied and ZiZj is the bitstrings combined
+                I_d_2_shortened_Z.append(( G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]))
+
+        #creates a list of tuples (+-1, Z-string) for commuting pairs  
+        I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
+
+        G_new = I_c_Z + I_d_2_shortened_Z
+        G0 = G_new
+    
+    return G0
             
-def compute_restricted_projector_stabilizer(minimal_generating_set, B):
+            
+def compute_restricted_projector_stabilizer(B, n):
     """
     Computes the restricted projector using the stabilizer formalism approach.
     
@@ -87,6 +112,7 @@ def compute_restricted_projector_stabilizer(minimal_generating_set, B):
     Returns:
         ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
     """
+    minimal_generating_set = compute_minimal_generating_set(B, n)
     matrix = np.zeros((len(B), len(minimal_generating_set)))
     #finding elements for matrix
     for i in B:
@@ -96,10 +122,19 @@ def compute_restricted_projector_stabilizer(minimal_generating_set, B):
         matrix[i] = matrix_row
     print(matrix)
 
+def parity(n):
+    #using Brian Kernighan's algorithm to check parity (commutation/anti-commutation), parity = 0 if even (commutes), and parity = 1 if odd (anti-commutes)
+    parity = 0
+    while n:
+        parity ^= 1
+        n &= n - 1 
+    return parity
+
 B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
-#compute_minimal_generating_set(B, 4)
+print(compute_minimal_generating_set(B, 4))
 B1 = [0b11101, 0b01010, 0b10011, 0b00110]
 G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
+
 
 
 
