@@ -6,7 +6,6 @@ from itertools import combinations, product
 from Stabilizer import *
 from utils import *
 
-# import itertools
 # import json
 # from scipy.special import comb
 # import sys
@@ -32,9 +31,11 @@ class XGraph:
     G : nx.Graph
     cost : int = None
     subgraphs = field(default_factory=list)
+    projectors = field(default_factory=list) # 2D array
+    subgraph_costs = field(default_factory=list)
     
 @dataclass
-class combinedXGraph:
+class CombinedXGraph:
     """
     Attributes:
         Xs (list[int]): List of mixer masks (binary int representations).
@@ -43,7 +44,12 @@ class combinedXGraph:
     """
     Xs : list[int]
     G : nx.Graph
+    projectors = field(default_factory=list) # 2D array
     cost : int = None
+
+# TODO: Implement method for directed graphs (digraph=True)
+# TODO: Implement method for reduced graphs (reduced=True)
+# TODO: Implement blacklist and whitelist methods
 
 class LXMixer:
     def __init__(self, B, digraph=False, reduced=True, sort=False, blacklist=[], whitelist=None):
@@ -56,45 +62,32 @@ class LXMixer:
         self.base_cost=0
         self.base_nedges=0
         
-        #main_loop
+    # Main loop:
+        # family_of_valid_graphs = self.compute_family_of_valid_graphs()
+        # self.compute_all_subgraphs(family_of_valid_graphs)
+        # connected_combinations = self.check_all_combinations(family_of_valid_graphs, combine_subgraphs=True)
+        # self.optimal_mixer = min(connected_combinations, key=lambda x: x.cost)
 
     def setB(self, B, sort:bool):
         if isinstance(B, set):
             B = list(B)
         elif isinstance(B, list):
-            B = list(set(B))### to make it unique
+            B = list(set(B)) # To make it unique
         else:
             raise TypeError("B must be a list or a set.")
-        self.nB = len(B)  ### number of B's
+        self.nB = len(B) # |B|
         if sort:
             B=sorted(B, key=lambda x: int(x, 2))
 
         if len(B) < 2:
             raise Exception("B must contain at least two elements.")
 
-        self.nL = len(str(B[0]))### number of literals
+        self.nL = len(str(B[0])) # Number of literals
         for b in B:
             if len(str(b)) != self.nL:
                 raise Exception("All entries of B must have the same length.")
 
         self.B = B
-            
-    #main_loop:
-        # compute family of valid mixer graphs compute_family_of_valid_mixergraphs()
-        #if choose_n: b_func, heuristic stuff
-            #n = 1
-            #connected = False
-            #while not connected:
-                #check_all_combinations(self.compute_family_of_valid_mixergraphs(), n) -> list[MixerGraph]
-                    #(check if any connected)
-                    #if len(list) != 0: connected = True)
-                #n+=1
-        #compute all subgraphs MixerGraphs (include all non-connected nodes in the subgraphs, nx.Graph.subgraph) compute_all_subgraphs()
-        #check_all_combinations
-        #cost for all combinations
-        #take lowest --> output MixerGraph with lowest cost; min(list[MixerGraph], key=lambda x: x.cost)
-        
-        #projector
             
     def compute_family_of_valid_graphs(self):
         """
@@ -106,7 +99,6 @@ class LXMixer:
         Returns:
             list[MixerGraph]: A list of MixerGraph structs representing the family of valid mixers.
         """
-        
         dim = len(self.B)
         used_X = set()
         graphs = []
@@ -122,8 +114,7 @@ class LXMixer:
                 b2 = b1^X_ij  # Their corresponding connected nodes
                 edges = list(zip(b1, b2))
                 # edges.add(tuple(sorted(u,v) for u, v in zip(b1, b2)))
-                # TODO: a more efficient way of removing duplicates? Doesnt matter for the networkx graph
-                graphs.append(XGraph(X=X_ij, G=nx.Graph(edges)))
+                graphs.append(XGraph(X=X_ij, G=nx.Graph(edges), cost=ncnot(X_ij)))
                 
                 used_X.add(X_ij)
         
@@ -136,19 +127,21 @@ class LXMixer:
         Args:
             graph_list (list[XGraphs]]): List of XGraph structs to divide into subgraphs.
         """
-        subgraphs = []
-        
         for xG in xgraph_list:
-            nodes = list(xG.G.nodes)
-            for r in range(1, len(nodes) + 1):
+            edges = list(xG.G.edges)
+            for r in range(1, len(edges) + 1):
                 if is_power_of_two(r):
-                    for subset in combinations(nodes, r):
-                        subG = xG.G.subgraph(subset).copy()
-                        xG.subgraphs.append(subG)
+                    for subset in combinations(edges, r):
+                        subG = nx.Graph()
+                        subG.add_edges_from(subset)
+                        if check_if_orbit(subG.nodes)[0]:
+                            xG.subgraphs.append(subG)
                         
-                        # TODO: Calculate cost for each subgraph. How do we calculate the cost of the projection?
+                            # TODO: Restricted = True/False option
+                            xG.projectors.append(np.array(compute_restricted_projector_stabilizer(subG.nodes(), self.nL)))
+                            xG.subgraph_costs.append(np.sum(ncnot(xG.projectors[-1])))
                         
-        #pass-by-reference  
+        # pass-by-reference  
     
     def check_all_combinations(self, graph_list:list[XGraph], N=None, combine_subgraphs=True):
         """
@@ -162,8 +155,6 @@ class LXMixer:
         Returns:
             list[XGraph]: List of XGraph structs that are connected.
         """
-        # TODO: Calculate cost for each combination
-        
         connected_combinations = []
         
         if N is None: N = range(1,len(graph_list)+1)
@@ -172,39 +163,31 @@ class LXMixer:
         options = []
         for xG in graph_list:
             if combine_subgraphs:
-                options.append([(xG.X, subgraph) for subgraph in xG.subgraphs] + [(None, nx.Graph())])
-            else: options.append([(xG.X, xG.G, nx.Graph()), (None, nx.Graph())])
+                options.append([(xG.X, subgraph, projectors_i, subgraph_cost) for subgraph, projectors_i, subgraph_cost in zip(xG.subgraphs, xG.projectors, xG.subgraph_costs)] + [(None, nx.Graph(), None, None)])
+            else: options.append([(xG.X, xG.G, None, xG.cost), (None, nx.Graph(), None, None)])
         
         for n in N:
             for subset in combinations(options,n): # Unordered combinations of size n
                 for combination in product(*subset):
                     combined_G = nx.Graph()
                     Xs = []
-                    # combined_cost = 0
-                    for X, G in combination: #cost
-                        combined_G = nx.compose(combined_G, G)
-                        if X is not None: Xs.append(X)
-                        #combined_cost += cost
-                        
+                    projectors = []
+                    combined_cost = 0
+                    for X_i, subG, projectors_i, cost in combination:
+                        combined_G = nx.compose(combined_G, subG)
+                        # TODO: Check connected
+                        if X_i is not None: Xs.append(X_i)
+                        projectors.append(projectors_i)
+                        combined_cost += cost
+                                                
                     if combined_G.number_of_nodes == len(self.B) and combined_G.number_of_edges == (len(self.B)-1): # Easy check
-                        if nx.is_connected(combined_G): # Actual check. TODO: check if stabilizer subgraph (for commutation)
+                        if nx.is_connected(combined_G): # Actual check
                             connected_combinations.append(
-                                combinedXGraph(
+                                CombinedXGraph(
                                     Xs=Xs, 
-                                    G=combined_G
-                                    # cost = combined_cost
+                                    G=combined_G, 
+                                    projectors=projectors,
+                                    cost = combined_cost
                                     )
-                            )
+                                )
         return connected_combinations
-
-    def cost(): # See utils.py
-        """
-        Cost function for the mixer graph.
-        
-        Args:
-            mixergraph (XGraph): The XGraph to compute the cost for.
-            
-        Returns:
-            int: The number of CNOTs associated with the mixer graph.
-        """
-        pass
