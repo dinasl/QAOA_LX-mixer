@@ -1,7 +1,5 @@
 is_power_of_two = lambda x: (x > 0) and (x & (x - 1)) == 0
 
-# Perhaps use string representation rather than binary int representation for Pauli strings (for better reusability with projectors)??
-
 def ncnot(P) :
     """
     Calculate the number of CNOT gates required to implement a Pauli string.
@@ -12,24 +10,16 @@ def ncnot(P) :
     Returns:
         int: Number of CNOT gates required to implement the Pauli string.
     """
-    ncnot = len(str(P).replace("0", ""))
-    if ncnot > 1:
-        return 2 * (ncnot - 1)
+    ncnot = P.bit_count()
+    return (ncnot > 1)*2*(ncnot - 1)
+
+def pauli_int_to_str(P, operator):
+    P = str(P)
+    P.replace("0", "I")
+    if operator == "X":
+        P = P.replace("1", "X")
+    elif operator == "Z":
+        P = P.replace("1", "Z")
     else:
-        return 0
-
-# def costPS(PS, h=None):
-#     """
-#     Calculate the cost of a list of Pauli strings.
-
-#     Args:
-#         PS (array-like[int]): Array of pauli strings (binary int representation).
-#         h (int, optional): A constant multiplier for the cost. Defaults to None.
-
-#     Returns:
-#         int: The cost of the Pauli string.
-#     """
-#     # Is h an int or float?
-#     if h!=None: PS*= h
-#     ncnots = ncnot(PS)
-#     return sum(ncnots)
+        raise ValueError("Operator must be 'X' or 'Z'.")
+    return P
