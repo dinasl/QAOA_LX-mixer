@@ -1,5 +1,16 @@
 import numpy as np
 import itertools
+import utils
+
+#TODO make class
+
+class Stabilizer:
+
+    def __init__(self, B, n):
+        self.B = B
+        self.n = n
+        self.orbit = None
+        
 
 def check_if_orbit(B):
     """
@@ -11,9 +22,9 @@ def check_if_orbit(B):
     Returns:
         bool: True if B is an orbit of a stabilizer group, False otherwise.
     """
-    #TODO not completely sure it includes absolutely all cases...
-    #This loop finds if there is an orbit when B=2^n states, iterates over all the possible X's and states
-    
+    #This loop finds if there is an orbit when B=2^n states, iterates over all the possible X's and states, brute force
+    #not going to be necessary method
+
     B_set = set(B)
     tried_X = set()
     for i in range(len(B)-1):
@@ -21,7 +32,7 @@ def check_if_orbit(B):
         if X_1 in tried_X:
             continue
         tried_X.add(X_1)
-        
+            
         #checks if it maps all states to another
         if not all((X_1 ^ state) in B_set for state in B):
             return False, None
@@ -39,22 +50,25 @@ def check_if_orbit(B):
                 return False
     
     return True
-    """
+    """ 
 
-def compute_minimal_generating_set(B, n):
+def compute_minimal_generating_set(B, n, orbit):
     """
     Computes the minimal generating set of a stabilizer group that contains the orbit B.
     
     Args:
         B (list[int]): Feasible set of bitstrings (int representations) from the computational basis that is an orbit.
         n (int): number of qubits
+        orbit (list[int]): List of x-strings that is the orbit as binary strings (int represenation)
     
     Returns:
         list[int]: List of Pauli strings (int representation) that form the minimal generating set.
     """
+    """
     #TODO what if it is not true?
     if check_if_orbit(B)[0]:
         orbit = check_if_orbit(B)[1]
+    """
     
     #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
     G0 = [((-1 if (B[0] >> (n - 1 - i)) & 1 else 1), 1 << (n - 1 - i)) for i in range(n)]
@@ -79,7 +93,7 @@ def compute_minimal_generating_set(B, n):
         #creates the anti-commuting pairs, it is now a list withing a list: ex: [[2, 3], [2, 4], ...]
         I_d_2 = list(itertools.combinations(I_d, 2)) 
         
-        #only iterating over necessary pairs and stores the relevant ones
+        #only iterating over necessary pairs and stores the relevant ones, TODO do elements included above in I_d_2
         elements_included = len(G0_elements) - len(I_c) - 1
         I_d_2_shortened_Z = []
 
