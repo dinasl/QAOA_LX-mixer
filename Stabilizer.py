@@ -1,16 +1,29 @@
 import numpy as np
 import itertools
 import utils
-
-#TODO make class
-
+#TODO lage om compute_minimal_generating_set() fra orbit til orbits (liste med orbits, bruke for-loop)
 class Stabilizer:
+    def __init__(self, familiy_of_graphs, B, n):
+        """
+        Note: functions need to be called in specific order. get_orbits (Dina's method), then compute_minimal_generating_set
+        
+        Attributes:
+            family_of_graphs (...):
+            B (list[int]): Feasible set of bitstrings (int representations) from the computational basis that is an orbit.
+            n (int): number of qubits
+            orbits [[ ]]):
+            edges [[[,]]]:
+            minimal_generating_set [[]]:
+            projector [[[,]]]:
 
-    def __init__(self, B, n):
+        """
+        self.family_of_graphs = familiy_of_graphs
         self.B = B
         self.n = n
-        self.orbit = None
-        self.minimal_generating_set = None
+        self.orbits = None
+        self.edges = None
+        self.minimal_generating_sets = None
+        self.projectors = None
 
     def check_if_orbit(self):
         """
@@ -35,86 +48,74 @@ class Stabilizer:
                 
             #checks if it maps all states to another
             if not all((X_1 ^ state) in B_set for state in self.B):
-                return False, None
+                self.orbit = None
         
-        return True, tried_X
+        self.orbit = tried_X
         #could also make a graph with nodes B, and add edges with X's...(?)
-        """
-        #brute force:
-        for i in range(len(B)-1):
-            X_1 = B[i]^B[i+1] #making X_1 = z1 ^ z2
-            
-            #checks if it maps all, need a way to minimize this one so that it doesn't iterate over the same ones
-            for state in B:                     #TODO at the very least we don't need to check the ones that 
-                if (X_1 ^ state) not in B:
-                    return False
-        
-        return True
-        """ 
+       
 
-    def compute_minimal_generating_set(self):
+    def compute_minimal_generating_sets(self):
         """
         Computes the minimal generating set of a stabilizer group that contains the orbit B.
         
         Args:
-            B (list[int]): Feasible set of bitstrings (int representations) from the computational basis that is an orbit.
-            n (int): number of qubits
-            orbit (list[int]): List of x-strings that is the orbit as binary strings (int represenation)
+            orbits (list[int]): List of x-strings that is the orbit as binary strings (int represenation)
         
         Returns:
             list[int]: List of Pauli strings (int representation) that form the minimal generating set.
         """
-        """
-        #TODO what if it is not true?
-        if check_if_orbit(B)[0]:
-            orbit = check_if_orbit(B)[1]
-        """
         
-        #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
-        G0 = [((-1 if (self.B[0] >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
-
-        #iteration process for algoritm 1
-        for x_string in self.orbit:
-            G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
-            G0_signs = [t[0] for t in G0]       #selects the +-1 value
-
-            #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
-            commutation_string = [x_string & z_string for z_string in G0_elements]
+        for orbit in self.orbits:
+            #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
+            #found the seed B[0] from the 0th element of the orbit we are looking at.
+            outer_index = self.edges.index(orbit)
+            B[0] = self.edges[outer_index][0]
+            G0 = [((-1 if (B[0] >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
             
-            I_c = []
-            I_d = []
-            for index, j in enumerate(commutation_string):      #iterates over the elements (binary strings)
-                parity_of_string = utils.parity(j)                    #checks the parity of each string
-                if parity_of_string == 0:
-                    I_c.append(index) #appends the position of the commuting string
-                else:
-                    I_d.append(index) #appends the position of the anti-commuting string
+            #iteration process for algoritm 1
+            for x_string in orbit:
+                G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
+                G0_signs = [t[0] for t in G0]       #selects the +-1 value
 
-            #creates the anti-commuting pairs, it is now a list withing a list: ex: [[2, 3], [2, 4], ...]
-            I_d_2 = list(itertools.combinations(I_d, 2)) 
+                #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
+                commutation_string = [x_string & z_string for z_string in G0_elements]
+                
+                I_c = []
+                I_d = []
+                for index, j in enumerate(commutation_string):      #iterates over the elements (binary strings)
+                    parity_of_string = utils.parity(j)                    #checks the parity of each string
+                    if parity_of_string == 0:
+                        I_c.append(index) #appends the position of the commuting string
+                    else:
+                        I_d.append(index) #appends the position of the anti-commuting string
+
+                #creates the anti-commuting pairs, it is now a list withing a list: ex: [[2, 3], [2, 4], ...]
+                I_d_2 = list(itertools.combinations(I_d, 2)) 
+                
+                #only iterating over necessary pairs and stores the relevant ones, TODO do elements included above in I_d_2
+                elements_included = len(G0_elements) - len(I_c) - 1
+                I_d_2_shortened_Z = []
+
+                if len(I_d_2) > 0: #checking that we have anti-commuting pairs #TODO I am not sure this one is necessary anymore...
+                    for i in range(elements_included): 
+                        #creates a tuple with (+-1, ZiZj) for anti-commuting pairs 
+                        #+-1 is the signs multiplied and ZiZj is the bitstrings combined
+                        I_d_2_shortened_Z.append((G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]))
+
+                #creates a list of tuples (+-1, Z-string) for commuting pairs  
+                I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
+
+                G_new = I_c_Z + I_d_2_shortened_Z
+                G0 = G_new
             
-            #only iterating over necessary pairs and stores the relevant ones, TODO do elements included above in I_d_2
-            elements_included = len(G0_elements) - len(I_c) - 1
-            I_d_2_shortened_Z = []
-
-            if len(I_d_2) > 0: #checking that we have anti-commuting pairs #TODO I am not sure this one is necessary anymore...
-                for i in range(elements_included): 
-                    #creates a tuple with (+-1, ZiZj) for anti-commuting pairs 
-                    #+-1 is the signs multiplied and ZiZj is the bitstrings combined
-                    I_d_2_shortened_Z.append((G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]))
-
-            #creates a list of tuples (+-1, Z-string) for commuting pairs  
-            I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
-
-            G_new = I_c_Z + I_d_2_shortened_Z
-            G0 = G_new
-        
-        return G0
+            #finds the final minimal generating set and adds it to the list of minimal generating sets
+            final_minimal_generating_set_1_orbit = G0
+            self.minimal_generating_sets.append(final_minimal_generating_set_1_orbit)
                 
                 
-    def compute_restricted_projector_stabilizer(self):
+    def compute_restricted_projector_stabilizers(self, restricted = False):
         """
-        Computes the restricted projector using the stabilizer formalism approach.
+        Computes the restricted projectors using the stabilizer formalism approach.
         
         Args:
             minimal generating set of stabilizer_group (list(tuples[int])): List of Pauli strings (int representation) that form the stabilizer group.
@@ -123,19 +124,23 @@ class Stabilizer:
         Returns:
             ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
         """
-        matrix = np.zeros((len(B), len(self.minimal_generating_set[:][1])))
-        #finding elements for matrix
-        for i in B:
-            matrix_row_binary = [i & stabilizer for stabilizer in self.minimal_generating_set] 
-            matrix_row = []                                                                          #TODO update this to numpy array so that it is faster
-            for index, string in enumerate(matrix_row_binary):
-                parity_string = utils.parity(string)
-                sign = parity_string*self.minimal_generating_set[index][0]
-                
-                matrix_row.append(sign)
+        if restricted:
+            for j in range(self.orbits):
+                matrix = np.zeros((len(self.B)-len(self.orbit[j]), len(self.minimal_generating_sets[j])))
+                #finding elements for matrix
+                for i in self.B:
+                    matrix_row_binary = [i & stabilizer for stabilizer in self.minimal_generating_sets[j][:][0]] 
+                    matrix_row = []                                                                          #TODO update this to numpy array so that it is faster
+                    for index, string in enumerate(matrix_row_binary):
+                        parity_string = utils.parity(string)
+                        sign = parity_string*self.minimal_generating_sets[j][index][0]
+                        
+                        matrix_row.append(sign)
 
-            matrix[i] = matrix_row
-        print(matrix)
+                    matrix[i] = matrix_row
+                print(matrix)
+        else:
+            pass #TODO find all combos of minimal generating set... (full stabilizer group)
 
 
 
