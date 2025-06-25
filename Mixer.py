@@ -47,7 +47,7 @@ class CombinedXGraph:
     projectors = field(default_factory=list) # 2D array
     cost : int = None
 
-# TODO: Implement method for directed graphs (digraph=True)
+# TODO: Implement method for directed graphs (digraph=True). Only for visual representation.
 # TODO: Implement method for reduced graphs (reduced=True)
 # TODO: Implement blacklist and whitelist methods
 
@@ -65,10 +65,15 @@ class LXMixer:
     # Main loop:
         # family_of_valid_graphs = self.compute_family_of_valid_graphs()
         # self.compute_all_subgraphs(family_of_valid_graphs)
-        # connected_combinations = self.check_all_combinations(family_of_valid_graphs, combine_subgraphs=True)
-        # self.optimal_mixer = min(connected_combinations, key=lambda x: x.cost)
+        # optimal_mixer = self.find_best_mixer(family_of_valid_graphs, combine_subgraphs=True, *method*)
 
     def setB(self, B, sort:bool):
+        """
+        Sets the feasible set B for the mixer.
+
+        Args:
+            B (array-like[int]): Feasible set of bitstrings (binary int representations) from the computational basis.
+        """
         if isinstance(B, set):
             B = list(B)
         elif isinstance(B, list):
@@ -155,7 +160,7 @@ class LXMixer:
         Returns:
             list[XGraph]: List of XGraph structs that are connected.
         """
-        connected_combinations = []
+        best_mixer = None
         
         if N is None: N = range(1,len(graph_list)+1)
         else: N = range(1,N+1)
@@ -165,6 +170,8 @@ class LXMixer:
             if combine_subgraphs:
                 options.append([(xG.X, subgraph, projectors_i, subgraph_cost) for subgraph, projectors_i, subgraph_cost in zip(xG.subgraphs, xG.projectors, xG.subgraph_costs)] + [(None, nx.Graph(), None, None)])
             else: options.append([(xG.X, xG.G, None, xG.cost), (None, nx.Graph(), None, None)])
+        
+        current_best_cost = float('inf')
         
         for n in N:
             for subset in combinations(options,n): # Unordered combinations of size n
@@ -179,15 +186,15 @@ class LXMixer:
                         if X_i is not None: Xs.append(X_i)
                         projectors.append(projectors_i)
                         combined_cost += cost
-                                                
+                    #  Replace if lower cost found               
                     if combined_G.number_of_nodes == len(self.B) and combined_G.number_of_edges == (len(self.B)-1): # Easy check
-                        if nx.is_connected(combined_G): # Actual check
-                            connected_combinations.append(
-                                CombinedXGraph(
-                                    Xs=Xs, 
-                                    G=combined_G, 
-                                    projectors=projectors,
-                                    cost = combined_cost
-                                    )
-                                )
-        return connected_combinations
+                        if combined_cost < current_best_cost:
+                            if nx.is_connected(combined_G): # Actual check
+                                best_mixer = CombinedXGraph(
+                                        Xs=Xs, 
+                                        G=combined_G, 
+                                        projectors=projectors,
+                                        cost = combined_cost
+                                        )
+                                current_best_cost = combined_cost
+        return best_mixer
