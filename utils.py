@@ -23,3 +23,11 @@ def pauli_int_to_str(P, operator):
     else:
         raise ValueError("Operator must be 'X' or 'Z'.")
     return P
+
+def parity(n):
+    #using Brian Kernighan's algorithm to check parity (commutation/anti-commutation), parity = 0 if even (commutes), and parity = 1 if odd (anti-commutes)
+    parity = 0
+    while n:
+        parity ^= 1
+        n &= n - 1 
+    return parity
