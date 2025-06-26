@@ -2,6 +2,7 @@ import numpy as np
 import itertools
 import utils
 #TODO lage om compute_minimal_generating_set() fra orbit til orbits (liste med orbits, bruke for-loop)
+#TODO update edges
 class Stabilizer:
     def __init__(self, familiy_of_graphs, B, n):
         """
@@ -9,21 +10,25 @@ class Stabilizer:
         
         Attributes:
             family_of_graphs (...):
-            B (list[int]): Feasible set of bitstrings (int representations) from the computational basis that is an orbit.
+            B ([[]]): Feasible set of bitstrings (int representations) from the computational basis that is an orbit.
             n (int): number of qubits
-            orbits [[ ]]):
-            edges [[[,]]]:
-            minimal_generating_set [[]]:
-            projector [[[,]]]:
+            orbits ([[ ]]):
+            edges ([[[,]]]):
+            minimal_generating_set ([[]]):
+            projector ([[[,]]]):
 
         """
         self.family_of_graphs = familiy_of_graphs
         self.B = B
         self.n = n
-        self.orbits = None
-        self.edges = None
-        self.minimal_generating_sets = None
-        self.projectors = None
+        self.orbits = []
+        self.edges = []
+        self.minimal_generating_sets = []
+        self.projectors = []
+    
+    #helping function to test the code before adding the find_orbit_function
+    def set_orbits(self,orbits):
+        self.orbits = orbits
 
     def check_if_orbit(self):
         """
@@ -37,23 +42,21 @@ class Stabilizer:
         """
         #This loop finds if there is an orbit when B=2^n states, iterates over all the possible X's and states, brute force
         #not going to be necessary method
-
-        B_set = set(self.B)
-        tried_X = set()
-        for i in range(len(self.B)-1):
-            X_1 = self.B[i]^self.B[i+1] #making X_1 = z1 ^ z2
-            if X_1 in tried_X:
-                continue
-            tried_X.add(X_1)
-                
-            #checks if it maps all states to another
-            if not all((X_1 ^ state) in B_set for state in self.B):
-                self.orbit = None
-        
-        self.orbit = tried_X
-        #could also make a graph with nodes B, and add edges with X's...(?)
+        for B in self.B:
+            B_set = set(B)
+            tried_X = set()
+            for i in range(len(B)-1):
+                X_1 = B[i]^B[i+1] #making X_1 = z1 ^ z2
+                if X_1 in tried_X:
+                    continue
+                tried_X.add(X_1)
+                    
+                #checks if it maps all states to another
+                if not all((X_1 ^ state) in B_set for state in B):
+                    self.orbits.append([None])
+                    break
+            self.orbits.append(list(tried_X))
        
-
     def compute_minimal_generating_sets(self):
         """
         Computes the minimal generating set of a stabilizer group that contains the orbit B.
@@ -64,12 +67,10 @@ class Stabilizer:
         Returns:
             list[int]: List of Pauli strings (int representation) that form the minimal generating set.
         """
-        
-        for orbit in self.orbits:
+        for index, orbit in enumerate(self.orbits):
             #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
             #found the seed B[0] from the 0th element of the orbit we are looking at.
-            outer_index = self.edges.index(orbit)
-            B[0] = self.edges[outer_index][0]
+            B[0] = self.B[index][0]
             G0 = [((-1 if (B[0] >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
             
             #iteration process for algoritm 1
@@ -113,7 +114,7 @@ class Stabilizer:
             self.minimal_generating_sets.append(final_minimal_generating_set_1_orbit)
             
                 
-    def compute_restricted_projector_stabilizers(self, restricted = False):
+    def compute_projector_stabilizers(self, restricted = False):
         """
         Computes the restricted projectors using the stabilizer formalism approach.
         
@@ -158,6 +159,8 @@ class Stabilizer:
                     
                             projector.add((sign, z_total))
                             projectors.append(projector)
+        self.projectors = projectors
+        print(self.projectors) #TODO feil
                 
                
 
@@ -169,6 +172,10 @@ B1 = [0b11101, 0b01010, 0b10011, 0b00110]
 G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
 #compute_restricted_projector_stabilizer(B1, 5)
 
+stabilizer = Stabilizer(familiy_of_graphs=None, B=[B], n=4)
+stabilizer.check_if_orbit()
+stabilizer.compute_minimal_generating_sets()
+stabilizer.compute_projector_stabilizers()
 
 
 
