@@ -16,7 +16,8 @@ class TestStabilizer(unittest.TestCase):
     def test_check_if_orbit(self):
         self.stabilizer.check_if_orbit()
         self.assertEqual(self.stabilizer.orbits, [[11, 14, 7]])
-    def test_compute_minimal_generating_sets(self): #TODO whaaat
+    def test_compute_minimal_generating_sets(self): 
+        self.stabilizer.check_if_orbit()
         self.stabilizer.compute_minimal_generating_sets()
         self.assertEqual(self.stabilizer.minimal_generating_sets, [[(1,13)]])
     def test_compute_projector_stabilizers(self):
