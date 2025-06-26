@@ -1,7 +1,6 @@
 import numpy as np
 import itertools
 import utils
-#TODO lage om compute_minimal_generating_set() fra orbit til orbits (liste med orbits, bruke for-loop)
 #TODO update edges
 class Stabilizer:
     def __init__(self, familiy_of_graphs, B, n):
@@ -124,6 +123,7 @@ class Stabilizer:
         Returns:
             ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
         """
+        #TODO remember to normalize the projector
         if restricted:
             for j in range(self.orbits):
                 matrix = np.zeros((len(self.B)-len(self.orbit[j]), len(self.minimal_generating_sets[j])))
@@ -140,27 +140,39 @@ class Stabilizer:
                     matrix[i] = matrix_row
                 print(matrix)
         else: #ignoring global phase?
-           #TODO need to fix this...
-           projectors = []
-           for minimal_generating_set in self.minimal_generating_sets:
-               #all possible combinations
-               k = len(minimal_generating_set)
-               projector = set()
-
-               for choice in itertools.product([0,1], repeat=k):
-                   sign = 1
-                   z_total = 0
-
-                   for bit, (s, z) in zip(choice, minimal_generating_set):
-                       if bit:
-                            sign *= s
-                            z_total ^= z
-                    
-                            projector.add((sign, z_total))
-                            projectors.append(projector)
-        self.projectors = projectors
+            #TODO need to fix this...
+            projectors = []
+            for minimal_generating_set in self.minimal_generating_sets:
+                #all possible combinations
+                k = len(minimal_generating_set)
+                projector = set()
+                signs, z_strings = zip(*minimal_generating_set)
+                signs = np.array(signs)
+                z_matrix = np.atleast_2d(np.array(z_strings))
                 
-               
+                # Get all binary combinations (2^k × k)
+                all_choices = np.array(list(itertools.product([0, 1], repeat=k)))  # shape (2^k, k)
+
+                # Combine z-strings with all combinations for choices
+                combined_z_strings = (all_choices * z_matrix).squeeze(axis=1) # shape (2^k, n)
+
+                # Compute total sign (product of selected signs)
+                # We use signs as ±1, and raise to the power of the choice bit
+                # So for each row in all_choices, we compute product of signs[i] ** choice[i]
+
+                # Log-free way (avoids i): for each row, multiply selected signs
+                total_signs = np.prod(np.where(all_choices == 1, signs, 1), axis=1)  # shape (2^k,)
+
+                # Combine into result list
+                projector = list(zip(total_signs.tolist(), combined_z_strings.tolist()))
+                projectors.append(projector)
+        
+        self.projectors = projectors
+
+
+                                    
+                                
+                            
 
 
 
