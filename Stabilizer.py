@@ -175,7 +175,7 @@ class Stabilizer:
                 projectors.append(list(projector))
         
         self.projectors = projectors
-        print(self.projectors)
+
 
 
                                     
