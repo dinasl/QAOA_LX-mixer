@@ -111,7 +111,7 @@ class Stabilizer:
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = G0
             self.minimal_generating_sets.append(final_minimal_generating_set_1_orbit)
-                
+            
                 
     def compute_restricted_projector_stabilizers(self, restricted = False):
         """
@@ -139,8 +139,27 @@ class Stabilizer:
 
                     matrix[i] = matrix_row
                 print(matrix)
-        else:
-            pass #TODO find all combos of minimal generating set... (full stabilizer group)
+        else: #ignoring global phase?
+           #TODO need to test this...
+           projectors = []
+           for minimal_generating_set in self.minimal_generating_sets:
+               #all possible combinations
+               k = len(minimal_generating_set)
+               projector = set()
+
+               for choice in itertools.product([0,1], repeat=k):
+                   sign = 1
+                   z_total = 0
+
+                   for bit, (s, z) in zip(choice, minimal_generating_set):
+                       if bit:
+                            sign *= s
+                            z_total ^= z
+                    
+                            projector.add((sign, z_total))
+                            projectors.append(projector)
+                
+               
 
 
 
