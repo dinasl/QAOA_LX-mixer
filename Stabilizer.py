@@ -14,7 +14,7 @@ class Stabilizer:
             n (int): number of qubits
             orbits ([[ ]]):
             edges ([[[,]]]):
-            minimal_generating_set ([[]]):
+            minimal_generating_set ([[()]]):
             projector ([[[,]]]):
 
         """
@@ -110,10 +110,9 @@ class Stabilizer:
                 G0 = G_new
             
             #finds the final minimal generating set and adds it to the list of minimal generating sets
-            final_minimal_generating_set_1_orbit = G0
+            final_minimal_generating_set_1_orbit = list(G0)
             self.minimal_generating_sets.append(final_minimal_generating_set_1_orbit)
-            
-                
+
     def compute_projector_stabilizers(self, restricted = False):
         """
         Computes the restricted projectors using the stabilizer formalism approach.
@@ -141,7 +140,7 @@ class Stabilizer:
                     matrix[i] = matrix_row
                 print(matrix)
         else: #ignoring global phase?
-           #TODO need to test this...
+           #TODO need to fix this...
            projectors = []
            for minimal_generating_set in self.minimal_generating_sets:
                #all possible combinations
@@ -160,7 +159,6 @@ class Stabilizer:
                             projector.add((sign, z_total))
                             projectors.append(projector)
         self.projectors = projectors
-        print(self.projectors) #TODO feil
                 
                
 
@@ -176,7 +174,6 @@ stabilizer = Stabilizer(familiy_of_graphs=None, B=[B], n=4)
 stabilizer.check_if_orbit()
 stabilizer.compute_minimal_generating_sets()
 stabilizer.compute_projector_stabilizers()
-
 
 
 
