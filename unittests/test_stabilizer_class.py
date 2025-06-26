@@ -7,15 +7,10 @@ from Stabilizer import *
 
 #TODO need a better test such as one where we get stabilizers that have more than 1 element... not sure if compute_projector_stabilizers work in that case
 class TestStabilizer(unittest.TestCase):
-    def __init__(self, methodname, test=1):
+    def __init__(self, methodname):
         super().__init__(methodname)
-
-        if test == 1:
-            self.B = [[0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]]
-            self.n = 4
-        elif test ==2:
-            self.B = [[0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]]
-            self.n = 4
+        self.B = [[0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]]
+        self.n = 4
         
         self.stabilizer = Stabilizer(familiy_of_graphs=None, B=self.B, n=self.n)
 
@@ -32,7 +27,6 @@ class TestStabilizer(unittest.TestCase):
         self.stabilizer.compute_projector_stabilizers()
         self.assertEqual(self.stabilizer.projectors, [[(1, 0), (1, 13)]])
 
-TestStabilizer()
 
 
 if __name__ == '__main__':

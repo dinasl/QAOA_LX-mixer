@@ -1,6 +1,8 @@
 import numpy as np
 import itertools
 import utils
+from functools import reduce
+import operator
 #TODO update edges
 class Stabilizer:
     def __init__(self, familiy_of_graphs, B, n):
@@ -144,30 +146,36 @@ class Stabilizer:
             projectors = []
             for minimal_generating_set in self.minimal_generating_sets:
                 #all possible combinations
+                #minimal_generating_set = [(1, 13),(1, 7),(-1, 11)] tried different minimal_generating_set
                 k = len(minimal_generating_set)
-                projector = set()
+                projector = []
+
                 signs, z_strings = zip(*minimal_generating_set)
                 signs = np.array(signs)
-                z_matrix = np.atleast_2d(np.array(z_strings))
+                z_strings = np.array(z_strings)
                 
                 # Get all binary combinations (2^k × k)
                 all_choices = np.array(list(itertools.product([0, 1], repeat=k)))  # shape (2^k, k)
 
-                # Combine z-strings with all combinations for choices
-                combined_z_strings = (all_choices * z_matrix).squeeze(axis=1) # shape (2^k, n)
+                for choice in all_choices:
+                    # Combine signs of selected generators
+                    choice = np.asarray(choice, dtype=bool)
+                    selected_signs = signs[choice]
+                    total_sign = np.prod(selected_signs) if len(selected_signs) > 0 else 1
 
-                # Compute total sign (product of selected signs)
-                # We use signs as ±1, and raise to the power of the choice bit
-                # So for each row in all_choices, we compute product of signs[i] ** choice[i]
+                    # Combine Pauli strings using XOR
+                    selected_zs = z_strings[choice]
+                    if len(selected_zs) == 0:
+                        combined_z = 0  # identity
+                    else:
+                        combined_z = reduce(operator.xor, selected_zs)
 
-                # Log-free way (avoids i): for each row, multiply selected signs
-                total_signs = np.prod(np.where(all_choices == 1, signs, 1), axis=1)  # shape (2^k,)
-
-                # Combine into result list
-                projector = list(zip(total_signs.tolist(), combined_z_strings.tolist()))
-                projectors.append(projector)
+                    projector.append((total_sign, combined_z))
+                
+                projectors.append(list(projector))
         
         self.projectors = projectors
+        print(self.projectors)
 
 
                                     
