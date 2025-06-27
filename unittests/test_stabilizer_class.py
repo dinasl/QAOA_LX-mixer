@@ -62,7 +62,7 @@ class TestStabilizer(unittest.TestCase):
                 "expected_projectors": [[(1, 0), (1, 13)]]
             },
             {
-                "B": [[0b11000, 0b00100, 0b0111, 0b01101, 0b1110, 0b10001]],
+                "B": [[0b11000, 0b00100, 0b01101, 0b10001]],
                 "n": 5,
                 "expected_orbits": [[9, 28]],
                 "expected_mgs": [[(1, 2), (-1, 20), (1, 25)]],
