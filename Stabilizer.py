@@ -23,7 +23,7 @@ class Stabilizer:
         self.B = B #TODO misledende å kalle de B? er jo egt subsets av B
         self.n = n
         self.orbits = []
-        self.edges = []
+        self.nodes_stabilized = []
         self.minimal_generating_sets = []
         self.projectors = []
     
@@ -90,25 +90,19 @@ class Stabilizer:
                         I_c.append(index) #appends the position of the commuting string
                     else:
                         I_d.append(index) #appends the position of the anti-commuting string
-
-                #creates the anti-commuting pairs, it is now a list withing a list: ex: [[2, 3], [2, 4], ...]
-                I_d_2 = list(itertools.combinations(I_d, 2)) 
-                
-                #only iterating over necessary pairs and stores the relevant ones, TODO do elements included above in I_d_2
+                #the number of elements that needs to be 
                 elements_included = len(G0_elements) - len(I_c) - 1
-                I_d_2_shortened_Z = []
-
-                if len(I_d_2) > 0: #checking that we have anti-commuting pairs #TODO I am not sure this one is necessary anymore...
-                    for i in range(elements_included): 
-                        #creates a tuple with (+-1, ZiZj) for anti-commuting pairs 
-                        #+-1 is the signs multiplied and ZiZj is the bitstrings combined
-                        I_d_2_shortened_Z.append((G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]))
-
+                
+                
+                I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
+                I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
+                
                 #creates a list of tuples (+-1, Z-string) for commuting pairs  
                 I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
 
-                G_new = I_c_Z + I_d_2_shortened_Z
+                G_new = I_c_Z + I_d_2_Z
                 G0 = G_new
+                print(G0)
             
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = list(G0)
@@ -127,15 +121,20 @@ class Stabilizer:
         """
         #TODO remember to normalize the projector
         if restricted:
-            for j in range(self.orbits):
-                matrix = np.zeros((len(self.B)-len(self.orbit[j]), len(self.minimal_generating_sets[j])))
+            for j in range(self.minimal_generating_sets):
+                #dimension and number of rows and columns of the matrix
+                B_not_stabilized = [x for x in self.B[j] if x not in self.nodes_stabilized[j]]
+                minimal_generating_set = self.minimal_generating_sets[j]
+                
+                matrix = np.zeros((len(B_not_stabilized), len(minimal_generating_set)))
+                
                 #finding elements for matrix
-                for i in self.B:
-                    matrix_row_binary = [i & stabilizer for stabilizer in self.minimal_generating_sets[j][:][0]] 
-                    matrix_row = []                                                                          #TODO update this to numpy array so that it is faster
+                for i in B_not_stabilized:
+                    matrix_row_binary = [i & stabilizer for stabilizer in minimal_generating_set[:][0]]     #
+                    matrix_row = []                                                                         #TODO update this to numpy array so that it is faster
                     for index, string in enumerate(matrix_row_binary):
                         parity_string = utils.parity(string)
-                        sign = parity_string*self.minimal_generating_sets[j][index][0]
+                        sign = parity_string*minimal_generating_set[index][0]
                         
                         matrix_row.append(sign)
 
