@@ -20,7 +20,7 @@ class Stabilizer:
 
         """
         self.family_of_graphs = familiy_of_graphs
-        self.B = B
+        self.B = B #TODO misledende å kalle de B? er jo egt subsets av B
         self.n = n
         self.orbits = []
         self.edges = []
@@ -142,11 +142,11 @@ class Stabilizer:
                     matrix[i] = matrix_row
                 print(matrix)
         else: #ignoring global phase?
-            #TODO need to fix this...
+            #TODO it is supposed to be absolutely all stabilizers with all combinations and the identity?
             projectors = []
             for minimal_generating_set in self.minimal_generating_sets:
                 #all possible combinations
-                #minimal_generating_set = [(1, 13),(1, 7),(-1, 11)] tried different minimal_generating_set
+                #minimal_generating_set = [(1, 13),(1, 7),(-1, 11)] #tried different minimal_generating_set
                 k = len(minimal_generating_set)
                 projector = []
 
@@ -162,28 +162,20 @@ class Stabilizer:
                     choice = np.asarray(choice, dtype=bool)
                     selected_signs = signs[choice]
                     total_sign = np.prod(selected_signs) if len(selected_signs) > 0 else 1
-
+                    
                     # Combine Pauli strings using XOR
                     selected_zs = z_strings[choice]
                     if len(selected_zs) == 0:
                         combined_z = 0  # identity
                     else:
-                        combined_z = reduce(operator.xor, selected_zs)
+                        #reduce applies the function ^ iteratively, and 0 is the inital value
+                        combined_z = reduce(lambda a, b: a ^ b, selected_zs, 0)
 
                     projector.append((total_sign, combined_z))
                 
                 projectors.append(list(projector))
         
         self.projectors = projectors
-
-
-
-                                    
-                                
-                            
-
-
-
 B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
 #compute_minimal_generating_set(B, 4)
 B1 = [0b11101, 0b01010, 0b10011, 0b00110]
