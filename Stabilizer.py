@@ -2,10 +2,10 @@ import numpy as np
 import itertools
 import utils
 from functools import reduce
-import operator
-#TODO update edges
+from sympy import Matrix, GF
+
 class Stabilizer:
-    def __init__(self, familiy_of_graphs, B, n):
+    def __init__(self, familiy_of_graphs, B, n, valid_states=None):
         """
         Note: functions need to be called in specific order. get_orbits (Dina's method), then compute_minimal_generating_set
         
@@ -14,22 +14,22 @@ class Stabilizer:
             B ([[]]): Feasible set of bitstrings (int representations) from the computational basis that is an orbit.
             n (int): number of qubits
             orbits ([[ ]]):
-            edges ([[[,]]]):
+            valid_states ([[[,]]]): The states that is defined in the original problem as valid. Does not need to be an orbit
             minimal_generating_set ([[()]]):
             projector ([[[,]]]):
 
         """
         self.family_of_graphs = familiy_of_graphs
-        self.B = B #TODO misledende å kalle de B? er jo egt subsets av B
+        self.valid_states = valid_states
+        self.B = B #TODO misledende å kalle de B? er jo egt subsets av B som danner orbits
         self.n = n
         self.orbits = []
-        self.nodes_stabilized = []
         self.minimal_generating_sets = []
         self.projectors = []
     
     #helping function to test the code before adding the find_orbit_function
-    def set_orbits(self,orbits):
-        self.orbits = orbits
+    def print_values(self):
+        return "orbits: " + str(self.orbits) + "\nMin gen set: " + str(self.minimal_generating_sets) + "\nProjectors: " + str(self.projectors)
 
     def check_if_orbit(self):
         """
@@ -86,7 +86,7 @@ class Stabilizer:
                 I_d = []
                 for index, j in enumerate(commutation_string):      #iterates over the elements (binary strings)
                     parity_of_string = utils.parity(j)                    #checks the parity of each string
-                    if parity_of_string == 0:
+                    if parity_of_string == 1:
                         I_c.append(index) #appends the position of the commuting string
                     else:
                         I_d.append(index) #appends the position of the anti-commuting string
@@ -102,7 +102,6 @@ class Stabilizer:
 
                 G_new = I_c_Z + I_d_2_Z
                 G0 = G_new
-                print(G0)
             
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = list(G0)
@@ -123,25 +122,35 @@ class Stabilizer:
         if restricted:
             for j in range(self.minimal_generating_sets):
                 #dimension and number of rows and columns of the matrix
-                B_not_stabilized = [x for x in self.B[j] if x not in self.nodes_stabilized[j]]
+                B_not_stabilized = [x for x in self.valid_states[j] if x not in self.B[j]] #TODO denne blir feil siden B bare er nodene i orbiten, må ha et overordnet set og skrive self.overordnet_set - self.B
                 minimal_generating_set = self.minimal_generating_sets[j]
                 
+                #TODO flip the rows and columns -> better later?
                 matrix = np.zeros((len(B_not_stabilized), len(minimal_generating_set)))
-                
-                #finding elements for matrix
-                for i in B_not_stabilized:
-                    matrix_row_binary = [i & stabilizer for stabilizer in minimal_generating_set[:][0]]     #
-                    matrix_row = []                                                                         #TODO update this to numpy array so that it is faster
-                    for index, string in enumerate(matrix_row_binary):
-                        parity_string = utils.parity(string)
-                        sign = parity_string*minimal_generating_set[index][0]
-                        
-                        matrix_row.append(sign)
 
+                #TODO make directly with 0s and 1s? switch parity back in utils, and do a True/False on minimal_generating_set[index][0]
+                for i in B_not_stabilized:
+                    #& operator on z-string (stabilizer) and state -> 1s if Z works on 1 and take parity of that
+                    #-> -1 if anticommuting and 1 if commuting -> multiply by sign of the stabilizer
+                    matrix_row = [utils.parity(i & stabilizer)*minimal_generating_set[index][0] for index, stabilizer in minimal_generating_set[:][1]]     #TODO check that minimal_generating_set[:][1] gives z-string
                     matrix[i] = matrix_row
-                print(matrix)
-        else: #ignoring global phase?
-            #TODO it is supposed to be absolutely all stabilizers with all combinations and the identity?
+                
+                #convert into matrix of 0s and 1s where 1 -> 0, -1 -> 1
+                binary_matrix = (matrix == -1).astype(int)
+
+                #transposes matrix to sove it more easily
+                matrix_transposed = Matrix(binary_matrix.T.tolist())
+
+                #creating the vector we want to find (all -1s in the article -> 1s in the matrix)
+                target = Matrix([1] * matrix.shape[0])
+
+                #finding the solution
+                sol = matrix_transposed.solve_least_squares(target, domain=GF(2))
+                
+                if sol is not None:
+                    indices = [i for i, val in enumerate(sol) if val == 1] # subset of column indices
+
+        else: #TODO ignoring global phase?
             projectors = []
             for minimal_generating_set in self.minimal_generating_sets:
                 #all possible combinations
@@ -175,6 +184,7 @@ class Stabilizer:
                 projectors.append(list(projector))
         
         self.projectors = projectors
+
 B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
 #compute_minimal_generating_set(B, 4)
 B1 = [0b11101, 0b01010, 0b10011, 0b00110]
@@ -186,6 +196,11 @@ stabilizer.check_if_orbit()
 stabilizer.compute_minimal_generating_sets()
 stabilizer.compute_projector_stabilizers()
 
+stabilizer2 = Stabilizer(familiy_of_graphs=None, B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
+stabilizer2.check_if_orbit()
+stabilizer2.compute_minimal_generating_sets()
+stabilizer2.compute_projector_stabilizers()
+print(stabilizer2.print_values())
 
 
 
