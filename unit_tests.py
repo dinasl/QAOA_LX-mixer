@@ -1,19 +1,54 @@
-import networkx as nx
-import numpy as np
-from dataclasses import dataclass, field
-from itertools import combinations, product
+import unittest
+from Mixer import LXMixer
 
-from utils import *
-from Stabilizer import *
-from Mixer import *
+class TestLXMixer(unittest.TestCase):
+    def test_compute_family_of_graphs(self):
+        correct_family_of_valid_graphs = {
+            0b0010: [(0, 1)],
+            0b0101: [(1, 2)],
+            0b0111: [(0, 2), (3, 4)],
+            0b1000: [(1, 3)],
+            0b1010: [(0, 3), (2, 4)],
+            0b1101: [(0, 4), (2, 3)],
+            0b1111: [(1, 4)]
+        }
+        
+        B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
+        lxmixer = LXMixer(B, 4)
+        lxmixer.compute_family_of_valid_graphs()
+        
+        # Sort edges for comparison
+        for key in correct_family_of_valid_graphs:
+            correct_family_of_valid_graphs[key] = sorted(correct_family_of_valid_graphs[key])
+        
+        for key in lxmixer.family_of_valid_graphs:
+            lxmixer.family_of_valid_graphs[key] = sorted(lxmixer.family_of_valid_graphs[key])
+        
+        self.assertEqual(lxmixer.family_of_valid_graphs, correct_family_of_valid_graphs)
+    
+    def test_compute_all_orbits(self):
+        correct_orbits = {
+            (0, 2, 3, 4) : [0b0111, 0b1010, 0b1101],
+            (0, 1) : [0b0010],
+            (1, 2) : [0b0101],
+            (1, 3) : [0b1000],
+            (1, 4) : [0b1111]
+        }
+        
+        B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
+        lxmixer = LXMixer(B, 4)
+        lxmixer.family_of_valid_graphs = {
+            0b0010: [(0, 1)],
+            0b0101: [(1, 2)],
+            0b0111: [(0, 2), (3, 4)],
+            0b1000: [(1, 3)],
+            0b1010: [(0, 3), (2, 4)],
+            0b1101: [(0, 4), (2, 3)],
+            0b1111: [(1, 4)]
+        }
+        lxmixer.compute_all_orbits()
+        
+        self.assertEqual(lxmixer.orbits, correct_orbits)
 
-def test_compute_family_of_graphs():
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
-    LX = LXMixer(B)
-    family_of_valid_graphs = LX.compute_family_of_graphs()
-    print("Computed family of valid graphs:\n")
-    for graph in family_of_valid_graphs:
-        X = graph.X
-        print(pauli_int_to_str(X, "X") + " ")
-    print("\nCorrect family of valid graphs:\n",
-          " IIXI, IXXX, XIXI, XXIX, IXIX, XIII, XXXX")
+if __name__ == '__main__':
+    unittest.main()

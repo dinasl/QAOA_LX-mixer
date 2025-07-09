@@ -46,7 +46,7 @@ class LXMixer:
         self.base_nedges=0
         
         self.family_of_valid_graphs : Dict[int, List[Tuple[int,...]]] = {}
-        self.family_of_valid_graphs_flattened : Dict[int, List[int]] = {}
+        # self.family_of_valid_graphs_flattened : Dict[int, List[int]] = {}
         self.node_connectors : Dict[int, Dict[int, int]] = {} # Maps nodes to connected nodes to the logical X operators that connect them
         for i in range(self.nB): self.node_connectors[i] = {} # Initializes the node_connectors dictionary for each node
 
@@ -93,8 +93,8 @@ class LXMixer:
 
         self.B = B
         # Print the binary representation of each element in B as the order may have been reversed
-        for b in B:
-            print(f"{b:04b}")  
+        # for b in B:
+        #     print(f"{b:04b}")  
             
     def compute_family_of_valid_graphs(self):
         """
@@ -113,10 +113,10 @@ class LXMixer:
                 X_ij = self.B[i] ^ self.B[j]
                 if X_ij not in used_X:
                     self.family_of_valid_graphs[X_ij] = [(i,j)]
-                    self.family_of_valid_graphs_flattened[X_ij] = [i,j]
+                    # self.family_of_valid_graphs_flattened[X_ij] = [i,j]
                 else: 
                     self.family_of_valid_graphs[X_ij].append((i,j))
-                    self.family_of_valid_graphs_flattened[X_ij].extend([i,j])
+                    # self.family_of_valid_graphs_flattened[X_ij].extend([i,j])
                 used_X.add(X_ij)
         
     def compute_all_orbits(self): # When in the Stabilizer class, args should be self.family_of_valid_graphs
@@ -189,7 +189,7 @@ class LXMixer:
                     new_available = available_Xs[x+1:]
                     
                     if len(current_path) == 0: # If no path has been taken yet, the new nodes are the ones connected by the first X operator
-                        new_nodes = self.family_of_valid_graphs_flattened[X] # If no path has been taken yet, the new nodes are the ones connected by the first X operator
+                        new_nodes = [node for u, v in self.family_of_valid_graphs[X] for node in (u, v)]                    
                     else: 
                         # Sets of nodes that form orbits cannot have edges going out of them
                         new_nodes = list({node for u, v in self.family_of_valid_graphs[X] if u in current_nodes and v in current_nodes for node in (u, v)})
@@ -205,57 +205,59 @@ class LXMixer:
                     # self.orbits.append([X])
                     # self.nodes.append(sorted([seed, neighbor]))
                     self.orbits[tuple(sorted([seed, neighbor]))] = [X]
-     
-# B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
-# B = [
-#     0b00001,
-#     0b00010,
-#     0b00100,
-#     0b01000,
-#     0b10000,
-#     0b00011,
-#     0b00101,
-#     0b00110,
-#     0b01001,
-#     0b01010,
-#     0b01100,
-#     0b10001,
-#     0b10010,
-#     0b10100,
-#     0b11000
-# ]
-B = [
-    0b10011,
-    0b01100,
-    0b11000,
-    0b00011,
-    0b01001,
-    0b10100,
-    0b00110,
-    0b01110
-]
-lxmixer = LXMixer(B, 5)
 
-lxmixer.compute_family_of_valid_graphs()
+# Standalone code (e.g., debugging or testing)
+if __name__ == '__main__':
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
+    # B = [
+    #     0b00001,
+    #     0b00010,
+    #     0b00100,
+    #     0b01000,
+    #     0b10000,
+    #     0b00011,
+    #     0b00101,
+    #     0b00110,
+    #     0b01001,
+    #     0b01010,
+    #     0b01100,
+    #     0b10001,
+    #     0b10010,
+    #     0b10100,
+    #     0b11000
+    # ]
+    B = [
+        0b10011,
+        0b01100,
+        0b11000,
+        0b00011,
+        0b01001,
+        0b10100,
+        0b00110,
+        0b01110
+    ]
+    lxmixer = LXMixer(B, 5)
 
-print("\nFamily of valid graphs:")
-for k, v in lxmixer.family_of_valid_graphs.items():
-    print(f"{k:0{lxmixer.nL}b} : {v}")
+    lxmixer.compute_family_of_valid_graphs()
 
-lxmixer.compute_all_orbits()
+    print("\nFamily of valid graphs:")
+    for k, v in lxmixer.family_of_valid_graphs.items():
+        print(f"{k:0{lxmixer.nL}b} : {v}")
 
-print("\nnode_connectors:")
-for k, v in lxmixer.node_connectors.items():
-    print(f"{k}")
-    for neighbor, X in v.items():
-        print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
+    lxmixer.compute_all_orbits()
 
-print("Orbits:")
-# for orbit in lxmixer.orbits:
-#     print([f"{X:0{lxmixer.nL}b}" for X in orbit])
-# print("Orbit nodes:")
-# print(lxmixer.nodes)
-# print(lxmixer.orbits)
+    print("\nnode_connectors:")
+    for k, v in lxmixer.node_connectors.items():
+        print(f"{k}")
+        for neighbor, X in v.items():
+            print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
 
-for nodes, Xs in lxmixer.orbits.items():
-    print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in Xs)}]")
+    print("Orbits:")
+    # for orbit in lxmixer.orbits:
+    #     print([f"{X:0{lxmixer.nL}b}" for X in orbit])
+    # print("Orbit nodes:")
+    # print(lxmixer.nodes)
+    # print(lxmixer.orbits)
+
+    for nodes, Xs in lxmixer.orbits.items():
+        print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in Xs)}]")
