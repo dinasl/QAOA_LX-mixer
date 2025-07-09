@@ -1,8 +1,5 @@
 # import networkx as nx
 import numpy as np
-# from dataclasses import dataclass, field
-from itertools import permutations
-# from collections import defaultdict
 from typing import Dict, List, Tuple
 
 from Stabilizer import *
@@ -13,6 +10,31 @@ from utils import *
 # TODO: Implement blacklist and whitelist methods
 
 class LXMixer:
+    """
+    Logical X mixer for the QAOA.
+    
+    The mixer is based on logical X operators connecting nodes in a feasible set B, the span of which is the feasible solution space
+    of the QAOA problem. The mixer computes the family of valid graphs, orbit subgraphs within this family and finds the minimal cost combinations of
+    subgraphs (with their respective logical X operators and projectors) that connect all nodes in the feasible set B.
+    
+    Attributes:
+        B (list[int]): Feasible set of bitstrings (binary int representations) from the computational basis.
+        nL (int): Number of qubits of each state. 
+        digraph (bool): Whether to use directed graphs (default: False).
+        reduced (bool): Whether to use reduced graphs (default: True).
+        sort (bool): Whether to sort the feasible set B (default: False).
+        blacklist (list[int]): List of logical X operators to exclude from the mixer.
+        whitelist (list[int]): List of logical X operators to include in the mixer (default: None).
+        
+        family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int representations) to edges (tuples of node indices) connected by the operator.
+        S (Stabilizer): Stabilizer object that computes orbits, edges, minimal generating sets, projectors and costs.
+        
+    Methods:
+        setB(): Sets the feasible set B for the mixer.
+        compute_family_of_valid_graphs(): Computes the family of valid mixers for the feasible set B
+        find_best_mixer(): Finds the best mixer based on the computed orbits, edges, minimal generating sets, projectors and costs.
+
+    """
     def __init__(self, B, nL, digraph=False, reduced=True, sort=False, blacklist=[], whitelist=None):
         self.setB(B, nL, sort)
         
@@ -97,10 +119,19 @@ class LXMixer:
                     self.family_of_valid_graphs_flattened[X_ij].extend([i,j])
                 used_X.add(X_ij)
         
-    def compute_all_orbits(self): # when in the Stabilizer class, args should be self.family_of_valid_graphs
+    def compute_all_orbits(self): # When in the Stabilizer class, args should be self.family_of_valid_graphs
+        """
+        Computes all orbits in the family of valid graphs using a depth-first search algorithm.
+        
+        Args:
+            family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int representations) to edges (tuples of node indices) connected by the operator.
+            nB (int): Number of nodes in the feasible set B.
+            
+        """
     # DEPTH-FIRST SEARCH ALGORITHM
         
-        self.orbits = []
+        self.orbits : Dict[List[int], set[int]] = {}
+        # self.orbits = []
         self.nodes = []
                 
         # Maps for each node the |B|-1 logical X operators that connects it to the other nodes
@@ -109,82 +140,80 @@ class LXMixer:
                 self.node_connectors[i][j] = X
                 self.node_connectors[j][i] = X
 
-        processed_nodes = set()
+        processed_nodes = set() # Nodes in (>2) orbit 
         processed_prefixes = set()
-        # failed_prefixes = set() # Set to store prefixes of failed paths to avoid using these combinations again
 
         for seed in range(self.nB):
-            if seed in processed_nodes: # Check if the seed node has already been processed
+            if seed in processed_nodes: # Skip to the next seed that is not already in a (>2) orbit
                 continue
             
-            print(f"\nProcessing seed node {seed}")
+            seed_Xs = list(self.node_connectors[seed].values()) # All |B|-1 logical X operators connected to the seed node
             
-            seed_Xs = list(self.node_connectors[seed].values()) # All X operators connected to the seed node
-            
-            stack = []
-            initial_available = seed_Xs
-            stack.append(([], initial_available, set([seed]))) # Initializes depth-first search with an empty path, available X operators and the seed node
+            stack = [] # Stack for depth-first search
+            stack.append(([], seed_Xs, set([seed]))) # Initialize
             
             while stack:
-                current_path, available_Xs, current_nodes = stack.pop() # Processes each state in last-in-first-out order
-                # print("\nCurrent path:")
-                # for X in current_path:
-                #     print(f"{X:{self.nL}b}")
-                # print(f"\nAvailable Xs:")
-                # for X in available_Xs:
-                #     print(f"{X:0{self.nL}b}")
-                # print(f"\nCurrent nodes: {current_nodes}")
+                current_path, available_Xs, current_nodes = stack.pop() # Bakctracking step: processes each state in last-in-first-out order
                 # current_path: sequence of X operators applied so far
                 # available_Xs: set of X operators that can still be applied
                 # current_nodes: current nodes in orbit
                                 
                 path_tuple = tuple(sorted(current_path))
-                for X in path_tuple: print(f"{X:0{self.nL}b}", end=" ")
+                current_nodes_tuple = tuple(sorted(current_nodes))
                 
                 if path_tuple in processed_prefixes:
-                    # print("if")
-                    continue #Continue works?
+                    continue # If path has already been processed, backtrack
                 processed_prefixes.add(path_tuple) # Add the current path to the processed prefixes
-                processed_nodes.update(current_nodes) # Update the processed nodes with the current nodes
-                # print(processed_nodes)
                 
                 if (len(current_nodes) > 2 and len(current_path) > 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit
-                    if not any(path_tuple == tuple(sorted(orbit)) for orbit in self.orbits): # Check if the orbit is already recorded
-                        self.orbits.append(list(current_path))
-                        self.nodes.append(list(current_nodes))
+                    # if not any(path_tuple == tuple(sorted(orbit)) for orbit in self.orbits): # Check if the orbit is already recorded
+                    #     self.orbits.append(list(current_path))
+                    #     self.nodes.append(list(current_nodes))
+                    
+                    if not any(path_tuple == tuple(sorted(orbit)) for orbit in self.orbits.values()):
+                        current_nodes_tuple = tuple(sorted(current_nodes))  # Convert current_nodes to a tuple
+                        
+                        if current_nodes_tuple in self.orbits.keys():
+                            self.orbits[current_nodes_tuple].extend(current_path)  # Extend the list of operators
+                            self.orbits[current_nodes_tuple] = sorted(set(self.orbits[current_nodes_tuple]))  # Remove duplicates and sort
+                        else:
+                            self.orbits[current_nodes_tuple] = sorted(set(current_path))  # Initialize as a sorted list without duplicates
+                        
+                        processed_nodes.update(current_nodes)  # Update the processed nodes with the current nodes
                 
-                if len(current_path) == len(seed_Xs): # If all available X operators have been used, go to a new branch
+                if len(current_path) == len(seed_Xs): # If the path is |B|-1 long, backtrack
                     continue
                 
-                for x, X in enumerate(available_Xs):
+                for x, X in enumerate(available_Xs): # Iterate over all the next paths in decision tree
                     new_path = current_path + [X]
-                    new_available = available_Xs[x+1:] # This is too strict available_Xs - {X}
+                    new_available = available_Xs[x+1:]
                     
-                    if len(current_path) == 0:
+                    if len(current_path) == 0: # If no path has been taken yet, the new nodes are the ones connected by the first X operator
                         new_nodes = self.family_of_valid_graphs_flattened[X] # If no path has been taken yet, the new nodes are the ones connected by the first X operator
                     else: 
+                        # Sets of nodes that form orbits cannot have edges going out of them
                         new_nodes = list({node for u, v in self.family_of_valid_graphs[X] if u in current_nodes and v in current_nodes for node in (u, v)})
                         
-                        if not new_nodes:
+                        if not new_nodes: # If the path doesn't lead anywhere, don't add it to the stack
                             continue
-                                            
-                    # if len(new_nodes) < 2: # If the new nodes are less than 2, the path is not valid
-                    #     continue
                     
-                    # processed_prefixes.add(tuple(sorted(new_path)))
-                    stack.append((new_path, new_available, new_nodes)) # Add the new path to the stack
-                
+                    stack.append((new_path, new_available, new_nodes)) # Add valid paths to the stack
             
+            # If the seed node is not part of any larger (>2) orbit, add all the |B|-1 trivial orbits connecting it
+            if seed not in processed_nodes:
+                for neighbor, X in self.node_connectors[seed].items():
+                    # self.orbits.append([X])
+                    # self.nodes.append(sorted([seed, neighbor]))
+                    self.orbits[tuple(sorted([seed, neighbor]))] = [X]
      
-# Test family of valid graphs computation
-B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
+# B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
 # B = [
-#     0b00001,  # weight 1
+#     0b00001,
 #     0b00010,
 #     0b00100,
 #     0b01000,
 #     0b10000,
-#     0b00011,  # weight 2
+#     0b00011,
 #     0b00101,
 #     0b00110,
 #     0b01001,
@@ -195,25 +224,24 @@ B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
 #     0b10100,
 #     0b11000
 # ]
-# B = [
-#     0b10011,
-#     0b01100,
-#     0b11000,
-#     0b00011,
-#     0b01001,
-#     0b10100,
-#     0b00110,
-#     0b01110
-# ]
-lxmixer = LXMixer(B, 4)
+B = [
+    0b10011,
+    0b01100,
+    0b11000,
+    0b00011,
+    0b01001,
+    0b10100,
+    0b00110,
+    0b01110
+]
+lxmixer = LXMixer(B, 5)
 
 lxmixer.compute_family_of_valid_graphs()
 
 print("\nFamily of valid graphs:")
 for k, v in lxmixer.family_of_valid_graphs.items():
     print(f"{k:0{lxmixer.nL}b} : {v}")
-    
-# Test orbit computation
+
 lxmixer.compute_all_orbits()
 
 print("\nnode_connectors:")
@@ -223,7 +251,11 @@ for k, v in lxmixer.node_connectors.items():
         print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
 
 print("Orbits:")
-for orbit in lxmixer.orbits:
-    print([f"{X:0{lxmixer.nL}b}" for X in orbit])
-print("Orbit nodes:")
-print(lxmixer.nodes)
+# for orbit in lxmixer.orbits:
+#     print([f"{X:0{lxmixer.nL}b}" for X in orbit])
+# print("Orbit nodes:")
+# print(lxmixer.nodes)
+# print(lxmixer.orbits)
+
+for nodes, Xs in lxmixer.orbits.items():
+    print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in Xs)}]")
