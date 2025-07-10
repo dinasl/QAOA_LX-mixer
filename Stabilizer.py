@@ -4,8 +4,12 @@ import utils
 from functools import reduce
 from sympy import Matrix, GF
 
+# ----- Importing custom classes -----
+from Mixer import Orbit
+from Mixer import LXMixer
+
 class Stabilizer:
-    def __init__(self, familiy_of_graphs, B, n, valid_states=None):
+    def __init__(self, B, n, orbit_dictionary):
         """
         Note: functions need to be called in specific order. get_orbits (Dina's method), then compute_minimal_generating_set
         
@@ -19,13 +23,10 @@ class Stabilizer:
             projector ([[[,]]]):
 
         """
-        self.family_of_graphs = familiy_of_graphs
-        self.valid_states = valid_states
-        self.B = B #TODO misledende å kalle de B? er jo egt subsets av B som danner orbits
+        self.B = B 
         self.n = n
-        self.orbits = []
-        self.minimal_generating_sets = []
-        self.projectors = []
+        self.orbit_dictionary = orbit_dictionary
+
     
     #helping function to test the code before adding the find_orbit_function
     def print_values(self):
@@ -58,7 +59,7 @@ class Stabilizer:
                     break
             self.orbits.append(list(tried_X))
        
-    def compute_minimal_generating_sets(self):
+    def compute_minimal_generating_sets_old(self):
         """
         Computes the minimal generating set of a stabilizer group that contains the orbit B.
         
@@ -107,6 +108,59 @@ class Stabilizer:
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = list(G0)
             self.minimal_generating_sets.append(final_minimal_generating_set_1_orbit)
+    
+    def compute_minimal_generating_sets(self):
+        """
+        Computes the minimal generating set of a stabilizer group that contains the orbit B.
+        
+        Args:
+            orbits_new (Dict{sort_tuple: Class}): Dictionary with nodes as keys (represented in tuples) and the class Orbit as values (containing lists of values)
+            B (List[int]): 
+        
+        Returns:
+            list[int]: List of Pauli strings (int representation) that form the minimal generating set.
+        """
+        for nodes, orbit_class in self.orbit_dictionary.items():
+            #use seed to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
+            #found the seed from the 0th element of the tuple, which corresponds to a state saved as a bin int in self.B 
+            seed = self.B[nodes[0]]
+            G0 = [((-1 if (seed >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
+            
+            #iteration process for algoritm 1
+            for x_string in orbit_class.Xs:
+                G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
+                G0_signs = [t[0] for t in G0]       #selects the +-1 value
+
+                #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
+                commutation_string = [x_string & z_string for z_string in G0_elements]
+                
+                I_c = []
+                I_d = []
+                for index, j in enumerate(commutation_string):      #iterates over the elements (binary strings)
+                    parity_of_string = utils.parity(j)                    #checks the parity of each string
+                    if parity_of_string == 1:
+                        I_c.append(index) #appends the position of the commuting string
+                    else:
+                        I_d.append(index) #appends the position of the anti-commuting string
+                #the number of elements that needs to be 
+                elements_included = len(G0_elements) - len(I_c) - 1
+                
+                
+                I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
+                I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
+                
+                #creates a list of tuples (+-1, Z-string) for commuting pairs  
+                I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
+
+                G_new = I_c_Z + I_d_2_Z
+                G0 = G_new
+            
+            #finds the final minimal generating set and adds it to the list of minimal generating sets
+            final_minimal_generating_set_1_orbit = list(G0)
+            if orbit_class.Zs is None:
+                orbit_class.Zs = []
+            
+            orbit_class.append(final_minimal_generating_set_1_orbit)
 
     def compute_projector_stabilizers(self, restricted = False):
         """
@@ -187,12 +241,13 @@ class Stabilizer:
         self.projectors = projectors
 
 B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
+orbit_dictionary = {"hei":"hei"}
 #compute_minimal_generating_set(B, 4)
 B1 = [0b11101, 0b01010, 0b10011, 0b00110]
 G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
 #compute_restricted_projector_stabilizer(B1, 5)
 
-stabilizer = Stabilizer(familiy_of_graphs=None, B=[B], n=4)
+stabilizer = Stabilizer(B=B, n=4, orbit_dictionary={})
 stabilizer.check_if_orbit()
 stabilizer.compute_minimal_generating_sets()
 stabilizer.compute_projector_stabilizers()
