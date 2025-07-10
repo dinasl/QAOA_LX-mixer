@@ -67,3 +67,10 @@ def convert_to_binary_string(int_values, n):
 
     else:
         raise TypeError("Input must be int, list, or dict of ints")
+
+def is_connected(orbits):
+    # Short circuit evaluation
+    for orbit in orbits:
+        if not any(set(orbit.intersection(set(other_orbit))) for other_orbit in orbits if other_orbit != orbit):
+            return False
+    return True
