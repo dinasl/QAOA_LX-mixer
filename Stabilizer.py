@@ -103,15 +103,14 @@ class Stabilizer:
                 #creates a list of tuples (+-1, Z-string) for commuting pairs  
                 I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
 
+
                 G_new = I_c_Z + I_d_2_Z
                 G0 = G_new
             
             #finds the final minimal generating set and adds it to the list of minimal generating sets
-            final_minimal_generating_set_1_orbit = list(G0)
-            if orbit_class.Zs is None:
-                orbit_class.Zs = []
+            final_minimal_generating_set_1_orbit = G0 #removed list from list(G0) since it is already a list of tuples
             
-            orbit_class.Zs.append(final_minimal_generating_set_1_orbit)
+            self.orbit_dictionary[nodes].Zs = final_minimal_generating_set_1_orbit
 
     def compute_projector_stabilizers(self, restricted = False):
         """
@@ -157,8 +156,9 @@ class Stabilizer:
                     indices = [i for i, val in enumerate(sol) if val == 1] # subset of column indices
 
         else: #TODO ignoring global phase?
-            projectors = []
-            for minimal_generating_set in self.minimal_generating_sets:
+            for orbit in self.orbit_dictionary.values():
+                minimal_generating_set = orbit.Zs
+                print("Minimal generating set: ", minimal_generating_set)
                 #all possible combinations
                 #minimal_generating_set = [(1, 13),(1, 7),(-1, 11)] #tried different minimal_generating_set
                 k = len(minimal_generating_set)
@@ -167,7 +167,7 @@ class Stabilizer:
                 signs, z_strings = zip(*minimal_generating_set)
                 signs = np.array(signs)
                 z_strings = np.array(z_strings)
-                
+            
                 # Get all binary combinations (2^k × k)
                 all_choices = np.array(list(itertools.product([0, 1], repeat=k)))  # shape (2^k, k)
 
@@ -176,20 +176,22 @@ class Stabilizer:
                     choice = np.asarray(choice, dtype=bool)
                     selected_signs = signs[choice]
                     total_sign = np.prod(selected_signs) if len(selected_signs) > 0 else 1
-                    
+                
                     # Combine Pauli strings using XOR
                     selected_zs = z_strings[choice]
                     if len(selected_zs) == 0:
                         combined_z = 0  # identity
                     else:
-                        #reduce applies the function ^ iteratively, and 0 is the inital value
+                        # Reduce applies the function ^ iteratively, and 0 is the inital value
                         combined_z = reduce(lambda a, b: a ^ b, selected_zs, 0)
 
-                    projector.append((total_sign, combined_z))
-                
-                projectors.append(list(projector))
-        
-        self.projectors = projectors
+                    projector.append((int(total_sign), int(combined_z)))
+            
+    
+                # Updating so that we disregard the minimal generating sets and only keep the projectors 
+                orbit.Zs = projector #changed to projector from projectors
+
+                print("Projector for a given orbit: ", orbit.Zs)
 """
 B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
 orbit_dictionary = {"hei":"hei"}
