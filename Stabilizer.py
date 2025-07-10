@@ -5,7 +5,7 @@ from functools import reduce
 from sympy import Matrix, GF
 
 class Stabilizer:
-    def __init__(self, familiy_of_graphs, B, n, valid_states=None):
+    def __init__(self, familiy_of_graphs, B, n, orbits, valid_states=None):
         """
         Note: functions need to be called in specific order. get_orbits (Dina's method), then compute_minimal_generating_set
         
@@ -23,7 +23,7 @@ class Stabilizer:
         self.valid_states = valid_states
         self.B = B #TODO misledende å kalle de B? er jo egt subsets av B som danner orbits
         self.n = n
-        self.orbits = []
+        self.orbits = orbits
         self.minimal_generating_sets = []
         self.projectors = []
     
@@ -74,11 +74,13 @@ class Stabilizer:
             B[0] = self.B[index][0]
             G0 = [((-1 if (B[0] >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
             
+            print("B0: ", B[0], "\nG0: ", G0)
             #iteration process for algoritm 1
             for x_string in orbit:
                 G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
                 G0_signs = [t[0] for t in G0]       #selects the +-1 value
 
+                print("x_string: ",x_string,"\nG0_elements: ", G0_elements, "\nG0_signs: ", G0_signs)
                 #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
                 commutation_string = [x_string & z_string for z_string in G0_elements]
                 
@@ -92,7 +94,7 @@ class Stabilizer:
                         I_d.append(index) #appends the position of the anti-commuting string
                 #the number of elements that needs to be 
                 elements_included = len(G0_elements) - len(I_c) - 1
-                
+                print("I_c: ", I_c, "\nI_d: ", I_d, "\nelements_included: ", elements_included)
                 
                 I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
                 I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
@@ -185,22 +187,23 @@ class Stabilizer:
         
         self.projectors = projectors
 
-B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
+#B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
 #compute_minimal_generating_set(B, 4)
-B1 = [0b11101, 0b01010, 0b10011, 0b00110]
+#B1 = [0b11101, 0b01010, 0b10011, 0b00110]
 G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
 #compute_restricted_projector_stabilizer(B1, 5)
 
-stabilizer = Stabilizer(familiy_of_graphs=None, B=[B], n=4)
-stabilizer.check_if_orbit()
+B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
+
+stabilizer = Stabilizer(familiy_of_graphs=None, B=[B], n=4, orbits=[[0b1010,0b1101,0b0111], [0b0010], [0b0101], [0b1000], [0b1111]])
 stabilizer.compute_minimal_generating_sets()
 stabilizer.compute_projector_stabilizers()
 
-stabilizer2 = Stabilizer(familiy_of_graphs=None, B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
-stabilizer2.check_if_orbit()
-stabilizer2.compute_minimal_generating_sets()
-stabilizer2.compute_projector_stabilizers()
-print(stabilizer2.print_values())
+# stabilizer2 = Stabilizer(familiy_of_graphs=None, B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
+# stabilizer2.check_if_orbit()
+# stabilizer2.compute_minimal_generating_sets()
+# stabilizer2.compute_projector_stabilizers()
+# print(stabilizer2.print_values())
 
 
 
