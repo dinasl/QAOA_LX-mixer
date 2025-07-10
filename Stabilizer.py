@@ -71,10 +71,10 @@ class Stabilizer:
         for index, orbit in enumerate(self.orbits):
             #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
             #found the seed B[0] from the 0th element of the orbit we are looking at.
-            B[0] = self.B[index][0]
-            G0 = [((-1 if (B[0] >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
+            B_0 = self.B[index][0]
+            G0 = [((-1 if (B_0 >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
             
-            print("B0: ", B[0], "\nG0: ", G0)
+            print("B0: ", B_0, "\nG0: ", G0)
             #iteration process for algoritm 1
             for x_string in orbit:
                 G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
@@ -108,6 +108,7 @@ class Stabilizer:
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = list(G0)
             self.minimal_generating_sets.append(final_minimal_generating_set_1_orbit)
+            print("Final minimal generating set for orbit :", final_minimal_generating_set_1_orbit)
 
     def compute_projector_stabilizers(self, restricted = False):
         """
@@ -195,7 +196,7 @@ G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
 
 B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
 
-stabilizer = Stabilizer(familiy_of_graphs=None, B=[B], n=4, orbits=[[0b1010,0b1101,0b0111], [0b0010], [0b0101], [0b1000], [0b1111]])
+stabilizer = Stabilizer(familiy_of_graphs=None, B=[[0b1110, 0b1001, 0b0100, 0b0011],[0b1110, 0b1100],[0b1100, 0b1001],[0b1100, 0b0100],[0b1100, 0b0011]], n=4, orbits=[[0b1010,0b1101], [0b0010], [0b0101], [0b1000], [0b1111]])
 stabilizer.compute_minimal_generating_sets()
 stabilizer.compute_projector_stabilizers()
 
