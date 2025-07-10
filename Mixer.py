@@ -1,6 +1,7 @@
 # import networkx as nx
 import numpy as np
 from typing import Dict, List, Tuple
+from dataclasses import dataclass
 
 from Stabilizer import *
 from utils import *
@@ -8,6 +9,24 @@ from utils import *
 # TODO: Implement method for directed graphs (digraph=True). Only for visual representation.
 # TODO: Implement method for reduced graphs (reduced=True)
 # TODO: Implement blacklist and whitelist methods
+# TODO: Put the compute_all_orbits method into the Stabilizer class
+# TODO: Implement find_best_mixer method
+
+@dataclass
+class Orbit:
+    """
+    Class to store orbits and their properties.
+    
+    Attributes:
+        Xs (List[int]): Logical X operators.
+        X_costs List[int]: Logical X operator costs.
+        Zs (List[tuple[int, int]]): Projectors (Z operators).
+        Z_cost (int): Total cost of the projectors.
+    """
+    Xs: List[int]  = None
+    X_costs: List[int] = None
+    Zs: List[Tuple[int, int]] = None
+    Z_cost: int = None
 
 class LXMixer:
     """
@@ -52,17 +71,17 @@ class LXMixer:
 
     # Main loop:
         # self.B -> self.compute_family_of_valid_graphs() -> self.family_of_valid_graphs
-        # S = Stabilizer(self.B, self.nL, self.restricted)
+        # S = Stabilizer(self.B, self.nL)
         # self.family_of_valid_graphs -> S.compute_all_orbits()
             # S : -> self.orbits, self.edges
             #     -> self.num_orbits
         # S.compute_minimal_generating_sets()
             # S : -> self.minimal_generating_sets
-        # S.compute_projectors(self.restricted)
+        # S.compute_projectors()
             # S : -> self.projectors
         # S.compute_costs()
             # S : -> self.costs
-        # best_Gs, best_Xs, best_Zs, best_costs = self.find_best_mixer(S)
+        # best_Xs, best_Zs, best_costs = self.find_best_mixer(S)
 
     def setB(self, B, nL, sort:bool):
         """
@@ -132,7 +151,7 @@ class LXMixer:
         
         self.orbits : Dict[List[int], set[int]] = {}
         # self.orbits = []
-        self.nodes = []
+        # self.nodes = []
                 
         # Maps for each node the |B|-1 logical X operators that connects it to the other nodes
         for X, E in self.family_of_valid_graphs.items():
@@ -205,6 +224,95 @@ class LXMixer:
                     # self.orbits.append([X])
                     # self.nodes.append(sorted([seed, neighbor]))
                     self.orbits[tuple(sorted([seed, neighbor]))] = [X]
+        
+    def find_best_mixer(self, S: Stabilizer):
+        return
+
+# def compute_all_orbits(self, family_of_valid_graphs: Dict[int, List[Tuple[int,...]]], nB): # Function can be put into Stabilizer class
+#     """
+#     Computes all orbits in the family of valid graphs using a depth-first search algorithm.
+    
+#     Args:
+#         family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int representations) to edges (tuples of node indices) connected by the operator.
+#         nB (int): Number of nodes in the feasible set B.
+        
+#     """
+    
+#     node_connectors = {i: {} for i in range(len(family_of_valid_graphs))}
+        
+#     self.orbits : Dict[List[int], set[int]] = {}
+            
+#     # Maps for each node the |B|-1 logical X operators that connects it to the other nodes
+#     for X, E in family_of_valid_graphs.items():
+#         for i, j in E:
+#             node_connectors[i][j] = X
+#             node_connectors[j][i] = X
+
+#     processed_nodes = set() # Nodes in (>2) orbit 
+#     processed_prefixes = set()
+
+#     for seed in range(nB):
+#         if seed in processed_nodes: # Skip to the next seed that is not already in a (>2) orbit
+#             continue
+        
+#         seed_Xs = list(node_connectors[seed].values()) # All |B|-1 logical X operators connected to the seed node
+        
+#         stack = [] # Stack for depth-first search
+#         stack.append(([], seed_Xs, set([seed]))) # Initialize
+        
+#         while stack:
+#             current_path, available_Xs, current_nodes = stack.pop() # Bakctracking step: processes each state in last-in-first-out order
+#             # current_path: sequence of X operators applied so far
+#             # available_Xs: set of X operators that can still be applied
+#             # current_nodes: current nodes in orbit
+                            
+#             path_tuple = tuple(sorted(current_path))
+#             current_nodes_tuple = tuple(sorted(current_nodes))
+            
+#             if path_tuple in processed_prefixes:
+#                 continue # If path has already been processed, backtrack
+#             processed_prefixes.add(path_tuple) # Add the current path to the processed prefixes
+            
+#             if (len(current_nodes) > 2 and len(current_path) > 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit
+#                 # if not any(path_tuple == tuple(sorted(orbit)) for orbit in self.orbits): # Check if the orbit is already recorded
+#                 #     self.orbits.append(list(current_path))
+#                 #     self.nodes.append(list(current_nodes))
+                
+#                 if not any(path_tuple == tuple(sorted(orbit)) for orbit in self.orbits.values()):
+#                     current_nodes_tuple = tuple(sorted(current_nodes))  # Convert current_nodes to a tuple
+                    
+#                     if current_nodes_tuple in self.orbits.keys():
+#                         self.orbits[current_nodes_tuple].extend(current_path)  # Extend the list of operators
+#                         self.orbits[current_nodes_tuple] = sorted(set(self.orbits[current_nodes_tuple]))  # Remove duplicates and sort
+#                     else:
+#                         self.orbits[current_nodes_tuple] = sorted(set(current_path))  # Initialize as a sorted list without duplicates
+                    
+#                     processed_nodes.update(current_nodes)  # Update the processed nodes with the current nodes
+            
+#             if len(current_path) == len(seed_Xs): # If the path is |B|-1 long, backtrack
+#                 continue
+            
+#             for x, X in enumerate(available_Xs): # Iterate over all the next paths in decision tree
+#                 new_path = current_path + [X]
+#                 new_available = available_Xs[x+1:]
+                
+#                 if len(current_path) == 0: # If no path has been taken yet, the new nodes are the ones connected by the first X operator
+#                     new_nodes = [node for u, v in family_of_valid_graphs[X] for node in (u, v)]                    
+#                 else: 
+#                     # Sets of nodes that form orbits cannot have edges going out of them
+#                     new_nodes = list({node for u, v in family_of_valid_graphs[X] if u in current_nodes and v in current_nodes for node in (u, v)})
+                    
+#                     if not new_nodes: # If the path doesn't lead anywhere, don't add it to the stack
+#                         continue
+                
+#                 stack.append((new_path, new_available, new_nodes)) # Add valid paths to the stack
+        
+#         # If the seed node is not part of any larger (>2) orbit, add all the |B|-1 trivial orbits connecting it
+#         if seed not in processed_nodes:
+#             for neighbor, X in node_connectors[seed].items():
+#                 # self.orbits.append([X])
+#                 # self.nodes.append(sorted([seed, neighbor]))
+#                 self.orbits[tuple(sorted([seed, neighbor]))] = [X]
 
 # Standalone code (e.g., debugging or testing)
 if __name__ == '__main__':
