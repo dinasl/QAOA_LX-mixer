@@ -1,8 +1,7 @@
 # --- import classes ---
 from Stabilizer import Stabilizer
 from Mixer import LXMixer
-from Mixer import Orbit
- 
+
 B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
 
 lxmixer = LXMixer(B, 4)

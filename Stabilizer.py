@@ -4,9 +4,6 @@ import utils
 from functools import reduce
 from sympy import Matrix, GF
 
-# ----- Importing custom classes -----
-from Mixer import Orbit
-from Mixer import LXMixer
 
 class Stabilizer:
     def __init__(self, B, n, orbit_dictionary):
@@ -73,8 +70,8 @@ class Stabilizer:
         for index, orbit in enumerate(self.orbits):
             #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
             #found the seed B[0] from the 0th element of the orbit we are looking at.
-            B[0] = self.B[index][0]
-            G0 = [((-1 if (B[0] >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
+            #B[0] = self.B[index][0]
+            #G0 = [((-1 if (B[0] >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
             
             #iteration process for algoritm 1
             for x_string in orbit:
@@ -133,7 +130,7 @@ class Stabilizer:
 
                 #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
                 commutation_string = [x_string & z_string for z_string in G0_elements]
-                
+
                 I_c = []
                 I_d = []
                 for index, j in enumerate(commutation_string):      #iterates over the elements (binary strings)
@@ -142,12 +139,16 @@ class Stabilizer:
                         I_c.append(index) #appends the position of the commuting string
                     else:
                         I_d.append(index) #appends the position of the anti-commuting string
-                #the number of elements that needs to be 
-                elements_included = len(G0_elements) - len(I_c) - 1
+
+                #the number of elements that needs to be included
+                if len(I_d) > 1: #To be able to combine anti-commuting stabilizer, there needs to be at least 2 anti-commuting stabilizers
+                    elements_included = len(G0_elements) - len(I_c) - 1
                 
-                
-                I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
-                I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
+                    I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
+                    I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
+                else:
+                    #TODO what happens if there is only 1 anti-commuting stabilizer? -> just add it to the list of commuting stabilizers?
+                    I_d_2_Z = [] 
                 
                 #creates a list of tuples (+-1, Z-string) for commuting pairs  
                 I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
@@ -160,7 +161,7 @@ class Stabilizer:
             if orbit_class.Zs is None:
                 orbit_class.Zs = []
             
-            orbit_class.append(final_minimal_generating_set_1_orbit)
+            orbit_class.Zs.append(final_minimal_generating_set_1_orbit)
 
     def compute_projector_stabilizers(self, restricted = False):
         """
@@ -239,7 +240,7 @@ class Stabilizer:
                 projectors.append(list(projector))
         
         self.projectors = projectors
-
+"""
 B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
 orbit_dictionary = {"hei":"hei"}
 #compute_minimal_generating_set(B, 4)
@@ -248,17 +249,16 @@ G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
 #compute_restricted_projector_stabilizer(B1, 5)
 
 stabilizer = Stabilizer(B=B, n=4, orbit_dictionary={})
-stabilizer.check_if_orbit()
+#stabilizer.check_if_orbit()
 stabilizer.compute_minimal_generating_sets()
-stabilizer.compute_projector_stabilizers()
+#stabilizer.compute_projector_stabilizers()
 
-stabilizer2 = Stabilizer(familiy_of_graphs=None, B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
+stabilizer2 = Stabilizer(B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
 stabilizer2.check_if_orbit()
 stabilizer2.compute_minimal_generating_sets()
 stabilizer2.compute_projector_stabilizers()
 print(stabilizer2.print_values())
-
-
+"""
 
 
 
