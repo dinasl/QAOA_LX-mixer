@@ -64,6 +64,7 @@ class Stabilizer:
         
         Args:
             orbits (list[int]): List of x-strings that is the orbit as binary strings (int represenation)
+            orbits_new (dict): Dictionary with nodes as keys (represented in tuples) and orbits as values (list of binary int)
         
         Returns:
             list[int]: List of Pauli strings (int representation) that form the minimal generating set.
