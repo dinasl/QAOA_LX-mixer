@@ -55,56 +55,6 @@ class Stabilizer:
                     self.orbits.append([None])
                     break
             self.orbits.append(list(tried_X))
-       
-    def compute_minimal_generating_sets_old(self):
-        """
-        Computes the minimal generating set of a stabilizer group that contains the orbit B.
-        
-        Args:
-            orbits (list[int]): List of x-strings that is the orbit as binary strings (int represenation)
-            orbits_new (dict): Dictionary with nodes as keys (represented in tuples) and orbits as values (list of binary int)
-        
-        Returns:
-            list[int]: List of Pauli strings (int representation) that form the minimal generating set.
-        """
-        for index, orbit in enumerate(self.orbits):
-            #use seed B[0] to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
-            #found the seed B[0] from the 0th element of the orbit we are looking at.
-            #B[0] = self.B[index][0]
-            #G0 = [((-1 if (B[0] >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
-            
-            #iteration process for algoritm 1
-            for x_string in orbit:
-                G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
-                G0_signs = [t[0] for t in G0]       #selects the +-1 value
-
-                #is a string that checks if X and Z work on the same qubit for a x-string with all z-strings. Ex: 0100 means X and Z both work on qubit 2 
-                commutation_string = [x_string & z_string for z_string in G0_elements]
-                
-                I_c = []
-                I_d = []
-                for index, j in enumerate(commutation_string):      #iterates over the elements (binary strings)
-                    parity_of_string = utils.parity(j)                    #checks the parity of each string
-                    if parity_of_string == 1:
-                        I_c.append(index) #appends the position of the commuting string
-                    else:
-                        I_d.append(index) #appends the position of the anti-commuting string
-                #the number of elements that needs to be 
-                elements_included = len(G0_elements) - len(I_c) - 1
-                
-                
-                I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
-                I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
-                
-                #creates a list of tuples (+-1, Z-string) for commuting pairs  
-                I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
-
-                G_new = I_c_Z + I_d_2_Z
-                G0 = G_new
-            
-            #finds the final minimal generating set and adds it to the list of minimal generating sets
-            final_minimal_generating_set_1_orbit = list(G0)
-            self.minimal_generating_sets.append(final_minimal_generating_set_1_orbit)
     
     def compute_minimal_generating_sets(self):
         """
