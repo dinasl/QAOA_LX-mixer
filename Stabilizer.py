@@ -77,6 +77,8 @@ class Stabilizer:
                 print("orbit Xs: ", orbit.Xs)
                 print("reduced orbit Xs: ", reduced_orbit_x)
             
+            """NB: the k stuff above is not in use"""
+            
             seed = self.B[nodes[0]]
             G0 = [((-1 if (seed >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
             
