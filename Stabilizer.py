@@ -3,7 +3,7 @@ import itertools
 import utils
 from functools import reduce
 from sympy import Matrix, GF
-
+import math
 
 class Stabilizer:
     def __init__(self, B, n, orbit_dictionary):
@@ -67,14 +67,21 @@ class Stabilizer:
         Returns:
             list[int]: List of Pauli strings (int representation) that form the minimal generating set.
         """
-        for nodes, orbit_class in self.orbit_dictionary.items():
+        for nodes, orbit in self.orbit_dictionary.items():
             #use seed to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
             #found the seed from the 0th element of the tuple, which corresponds to a state saved as a bin int in self.B 
+            #TODO reducing the orbit like this does NOT work (makes all the projectors equal????), 
+            k = int(math.log2(len(nodes)))
+            if k != len(orbit.Xs):
+                reduced_orbit_x = set((list(orbit.Xs))[:k])
+                print("orbit Xs: ", orbit.Xs)
+                print("reduced orbit Xs: ", reduced_orbit_x)
+            
             seed = self.B[nodes[0]]
             G0 = [((-1 if (seed >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
             
             #iteration process for algoritm 1
-            for x_string in orbit_class.Xs:
+            for x_string in orbit.Xs: #TODO reduced_orbit_x:, orbit.Xs:
                 G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
                 G0_signs = [t[0] for t in G0]       #selects the +-1 value
 
@@ -157,10 +164,10 @@ class Stabilizer:
 
         else: #TODO ignoring global phase?
             for orbit in self.orbit_dictionary.values():
+                
                 minimal_generating_set = orbit.Zs
-                print("Minimal generating set: ", minimal_generating_set)
+                
                 #all possible combinations
-                #minimal_generating_set = [(1, 13),(1, 7),(-1, 11)] #tried different minimal_generating_set
                 k = len(minimal_generating_set)
                 projector = []
 

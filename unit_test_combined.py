@@ -10,3 +10,4 @@ lxmixer.compute_all_orbits()
 
 stabilizer = Stabilizer(B=lxmixer.B, n=4, orbit_dictionary=lxmixer.orbits)
 stabilizer.compute_minimal_generating_sets()
+stabilizer.compute_projector_stabilizers()
