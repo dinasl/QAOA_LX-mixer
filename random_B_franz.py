@@ -3,7 +3,10 @@ from multiprocessing import Pool
 #import tikzplotlib
 
 import itertools
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for saving plots
 from matplotlib import pyplot as plt
+import numpy as np
 from random import sample
 import time
 
@@ -15,56 +18,52 @@ class Worker:
     """n = dim(hilbert space)"""
 
     def __init__(self, n, checkmixer=False):
+        self.n = n  # Store n for later use
         self.all_states = ["".join(i) for i in itertools.product("01", repeat=n)]
         self.checkmixer = checkmixer
 
     def sample_B(self, m):
         """m = |B|"""
-        return sample(self.all_states, m)
+        binary_strings = sample(self.all_states, m)
+        # Convert binary strings to integers for LXMixer
+        return [int(binary_str, 2) for binary_str in binary_strings]
 
-    def get_costs(self, B, nL):
+    def get_costs(self, B):
+        nL = self.n  # Use the stored number of qubits
         
-        mixer = LXMixer(B, nL)
-        mixer.compute_family_of_valid_graphs()
-        mixer.compute_all_orbits()
-        stabilizer = Stabilizer(B=mixer.B, n=mixer.nL, orbit_dictionary=mixer.orbits)
-        stabilizer.compute_minimal_generating_sets()
-        stabilizer.compute_projector_stabilizers()
-        mixer.compute_costs()
-        #best_Xs, best_Zs, best_cost = lxmixer.find_best_mixer()
-        
-        #cnots_chain = mixer.orbits.X_costs
-
-        """
+        # Finding the cnot cost for a given B and nL
+        # Note: keeping loop structure for future chain mixer comparison
         for chain in [True, False]:
-            for reduced in [True, False]:
-                m = LXMixer(B,nL) #Changed to LXMixer from Mixer
-                #m.get_best_mixer_rust(reduced=reduced)
-                if chain:
-                    m.get_chain_mixer()
-                else:
-                    m.get_best_mixer_commuting_graphs()
-                if chain and reduced:
-                    cnots_chain_reduced = m.solution_chain_reduced_cost
-                elif chain and (not reduced):
-                    cnots_chain = m.solution_chain_cost
-                elif (not chain) and reduced:
-                    cnots_reduced = m.solution_reduced_cost
-                    num_optimal_solutions=len(m.solution_reduced)
-                else:
-                    cnots = m.solution_cost
-            """
+            if chain:
+                # Future: chain mixer implementation
+                continue
+            else:
+                # The LXMixer class
+                mixer = LXMixer(B, nL)
+                mixer.compute_family_of_valid_graphs()
+                mixer.compute_all_orbits()
+                stabilizer = Stabilizer(B=mixer.B, n=mixer.nL, orbit_dictionary=mixer.orbits)
+                stabilizer.compute_minimal_generating_sets()
+                stabilizer.compute_projector_stabilizers()
+                mixer.compute_costs()
 
-        return cnots, cnots_reduced, cnots_chain, cnots_chain_reduced, num_optimal_solutions
+                # Find the best mixer configuration
+                best_Xs, best_Zs, best_cost = mixer.find_best_mixer()
+                cnots_optimal = best_cost
+                break  # Exit loop after processing LXMixer
+
+        print("cnots_optimal", cnots_optimal)
+        return cnots_optimal#cnots, cnots_chain, num_optimal_solutions
 
 
 def saveResult(res):
-    global cnots, cnots_reduced, cnots_chain, cnots_chain_reduced, num_optimal_solutions
-    cnots.append(res[0])
-    cnots_reduced.append(res[1])
-    cnots_chain.append(res[2])
-    cnots_chain_reduced.append(res[3])
-    num_optimal_solutions.append(res[4])
+    global cnots_optimal #cnots, cnots_reduced, cnots_chain, cnots_chain_reduced, num_optimal_solutions
+    cnots_optimal.append(res)
+    # cnots.append(res[0])
+    # cnots_reduced.append(res[1])
+    # cnots_chain.append(res[2])
+    # cnots_chain_reduced.append(res[3])
+    # num_optimal_solutions.append(res[4])
 
 
 def plot(m_list, mean_cnots, var_cnots, min_cnots, max_cnots, color, col, style, text):
@@ -95,46 +94,67 @@ def main(n, num_samples=100):
     print("n=", n)
     worker = Worker(n, checkmixer=False)
 
+    # TODO this is a new loop for debugging... Test the worker directly first
+    print("Testing worker.get_costs directly...")
+    try:
+        test_B = worker.sample_B(2)
+        print(f"Test B: {test_B}")
+        test_result = worker.get_costs(test_B)
+        print(f"Test result: {test_result}")
+    except Exception as e:
+        print(f"Error in direct test: {e}")
+        import traceback
+        traceback.print_exc()
+        return
+
     # m = |B|
     m_list = list(range(2, 2**n + 1))
 
     # run
     # time_list = np.zeros(len(m_list))
-    min_cnots = np.zeros(len(m_list))
-    max_cnots = np.zeros(len(m_list))
-    mean_cnots = np.zeros(len(m_list))
-    var_cnots = np.zeros(len(m_list))
 
-    min_cnots_reduced = np.zeros(len(m_list))
-    max_cnots_reduced = np.zeros(len(m_list))
-    mean_cnots_reduced = np.zeros(len(m_list))
-    var_cnots_reduced = np.zeros(len(m_list))
+    min_cnots_optimal = np.zeros(len(m_list))
+    max_cnots_optimal = np.zeros(len(m_list))
+    mean_cnots_optimal = np.zeros(len(m_list))
+    var_cnots_optimal = np.zeros(len(m_list))
 
-    min_cnots_chain = np.zeros(len(m_list))
-    max_cnots_chain = np.zeros(len(m_list))
-    mean_cnots_chain = np.zeros(len(m_list))
-    var_cnots_chain = np.zeros(len(m_list))
+    # min_cnots = np.zeros(len(m_list))
+    # max_cnots = np.zeros(len(m_list))
+    # mean_cnots = np.zeros(len(m_list))
+    # var_cnots = np.zeros(len(m_list))
 
-    min_cnots_chain_reduced = np.zeros(len(m_list))
-    max_cnots_chain_reduced = np.zeros(len(m_list))
-    mean_cnots_chain_reduced = np.zeros(len(m_list))
-    var_cnots_chain_reduced = np.zeros(len(m_list))
+    # min_cnots_reduced = np.zeros(len(m_list))
+    # max_cnots_reduced = np.zeros(len(m_list))
+    # mean_cnots_reduced = np.zeros(len(m_list))
+    # var_cnots_reduced = np.zeros(len(m_list))
 
-    min_num_optimal_solutions = np.zeros(len(m_list))
-    max_num_optimal_solutions = np.zeros(len(m_list))
-    mean_num_optimal_solutions = np.zeros(len(m_list))
-    var_num_optimal_solutions = np.zeros(len(m_list))
+    # min_cnots_chain = np.zeros(len(m_list))
+    # max_cnots_chain = np.zeros(len(m_list))
+    # mean_cnots_chain = np.zeros(len(m_list))
+    # var_cnots_chain = np.zeros(len(m_list))
+
+    # min_cnots_chain_reduced = np.zeros(len(m_list))
+    # max_cnots_chain_reduced = np.zeros(len(m_list))
+    # mean_cnots_chain_reduced = np.zeros(len(m_list))
+    # var_cnots_chain_reduced = np.zeros(len(m_list))
+
+    # min_num_optimal_solutions = np.zeros(len(m_list))
+    # max_num_optimal_solutions = np.zeros(len(m_list))
+    # mean_num_optimal_solutions = np.zeros(len(m_list))
+    # var_num_optimal_solutions = np.zeros(len(m_list))
 
     for i, m in enumerate(m_list):
-        global cnots, cnots_reduced, cnots_chain, cnots_chain_reduced, num_optimal_solutions
-        cnots = []
-        cnots_reduced = []
-        cnots_chain = []
-        cnots_chain_reduced = []
-        num_optimal_solutions = []
+        global cnots_optimal #cnots, cnots_reduced, cnots_chain, cnots_chain_reduced, num_optimal_solutions
+        # cnots = []
+        # cnots_reduced = []
+        # cnots_chain = []
+        # cnots_chain_reduced = []
+        # num_optimal_solutions = []
+        cnots_optimal = []
         pool = Pool()
+        results = []
         for j in range(num_samples):
-            deb = pool.apply_async(
+            result = pool.apply_async(
                 worker.get_costs, args=(worker.sample_B(m),), callback=saveResult
             )
             # try:
@@ -142,44 +162,138 @@ def main(n, num_samples=100):
             # except Exception as e:
             #     print("Exception in worker.run:", e)
             #     traceback.print_exc()
+            results.append(result)
         pool.close()
         pool.join()
+        
+        # TODO this is a new debugging loop (until min_cnots_optimal)... Check for exceptions in the results
+        for j, result in enumerate(results):
+            try:
+                result.get()  # This will raise any exception that occurred
+            except Exception as e:
+                print(f"Exception in worker {j}: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        print(f"Collected {len(cnots_optimal)} results for m={m}")
+        if len(cnots_optimal) == 0:
+            print("No results collected - all tasks failed!")
+            continue  # Skip this m value
 
-        min_cnots[i] = np.min(cnots)
-        max_cnots[i] = np.max(cnots)
-        mean_cnots[i] = np.mean(cnots)
-        var_cnots[i] = np.var(cnots)
+        min_cnots_optimal[i] = np.min(cnots_optimal)
+        max_cnots_optimal[i] = np.max(cnots_optimal)
+        mean_cnots_optimal[i] = np.mean(cnots_optimal)
+        var_cnots_optimal[i] = np.var(cnots_optimal)
 
-        min_cnots_reduced[i] = np.min(cnots_reduced)
-        max_cnots_reduced[i] = np.max(cnots_reduced)
-        mean_cnots_reduced[i] = np.mean(cnots_reduced)
-        var_cnots_reduced[i] = np.var(cnots_reduced)
+        # min_cnots[i] = np.min(cnots)
+        # max_cnots[i] = np.max(cnots)
+        # mean_cnots[i] = np.mean(cnots)
+        # var_cnots[i] = np.var(cnots)
 
-        min_cnots_chain[i] = np.min(cnots_chain)
-        max_cnots_chain[i] = np.max(cnots_chain)
-        mean_cnots_chain[i] = np.mean(cnots_chain)
-        var_cnots_chain[i] = np.var(cnots_chain)
+        # min_cnots_reduced[i] = np.min(cnots_reduced)
+        # max_cnots_reduced[i] = np.max(cnots_reduced)
+        # mean_cnots_reduced[i] = np.mean(cnots_reduced)
+        # var_cnots_reduced[i] = np.var(cnots_reduced)
 
-        min_cnots_chain_reduced[i] = np.min(cnots_chain_reduced)
-        max_cnots_chain_reduced[i] = np.max(cnots_chain_reduced)
-        mean_cnots_chain_reduced[i] = np.mean(cnots_chain_reduced)
-        var_cnots_chain_reduced[i] = np.var(cnots_chain_reduced)
+        # min_cnots_chain[i] = np.min(cnots_chain)
+        # max_cnots_chain[i] = np.max(cnots_chain)
+        # mean_cnots_chain[i] = np.mean(cnots_chain)
+        # var_cnots_chain[i] = np.var(cnots_chain)
 
-        min_num_optimal_solutions[i] = np.min(num_optimal_solutions)
-        max_num_optimal_solutions[i] = np.max(num_optimal_solutions)
-        mean_num_optimal_solutions[i] = np.mean(num_optimal_solutions)
-        var_num_optimal_solutions[i] = np.var(num_optimal_solutions)
+        # min_cnots_chain_reduced[i] = np.min(cnots_chain_reduced)
+        # max_cnots_chain_reduced[i] = np.max(cnots_chain_reduced)
+        # mean_cnots_chain_reduced[i] = np.mean(cnots_chain_reduced)
+        # var_cnots_chain_reduced[i] = np.var(cnots_chain_reduced)
+
+        # min_num_optimal_solutions[i] = np.min(num_optimal_solutions)
+        # max_num_optimal_solutions[i] = np.max(num_optimal_solutions)
+        # mean_num_optimal_solutions[i] = np.mean(num_optimal_solutions)
+        # var_num_optimal_solutions[i] = np.var(num_optimal_solutions)
 
         print(int(100 * (i + 1) / len(m_list)), "%")
 
     fig = plt.figure()
 
+    # plot(
+    #     m_list,
+    #     mean_cnots_reduced,
+    #     var_cnots_reduced,
+    #     min_cnots_reduced,
+    #     max_cnots_reduced,
+    #     color="green",
+    #     col="g",
+    #     style="x",
+    #     text=", optimal reduced"
+    # )
+    # #tikzplotlib.save("statistics_cnots_n" + str(n) + "_1.tex")
+    # plt.savefig("stat_n" + str(n) + "_1.png")
+
+    # plot(
+    #     m_list,
+    #     mean_cnots,
+    #     var_cnots,
+    #     min_cnots,
+    #     max_cnots,
+    #     color="blue",
+    #     col="b",
+    #     style="o",
+    #     text=", optimal"
+    # )
+    # #tikzplotlib.save("statistics_cnots_n" + str(n) + "_2.tex")
+    # plt.savefig("stat_n" + str(n) + "_2.png")
+
+    # plot(
+    #     m_list,
+    #     mean_cnots_chain,
+    #     var_cnots_chain,
+    #     min_cnots_chain,
+    #     max_cnots_chain,
+    #     color="red",
+    #     col="r",
+    #     style="+",
+    #     text=", $T_{\Delta}$"
+    # )
+    # #tikzplotlib.save("statistics_cnots_n" + str(n) + "_3.tex")
+    # plt.savefig("stat_n" + str(n) + "_3.png")
+
+    # plot(
+    #     m_list,
+    #     mean_cnots_chain_reduced,
+    #     var_cnots_chain_reduced,
+    #     min_cnots_chain_reduced,
+    #     max_cnots_chain_reduced,
+    #     color="yellow",
+    #     col="y",
+    #     style="1",
+    #     text=", $T_{\Delta}$, reduced"
+    # )
+    # #tikzplotlib.save("statistics_cnots_n" + str(n) + "_4.tex")
+    # plt.savefig("stat_n" + str(n) + "_4.png")
+
+    # plt.clf()
+
+    # plot(
+    #     m_list,
+    #     mean_num_optimal_solutions,
+    #     var_num_optimal_solutions,
+    #     min_num_optimal_solutions,
+    #     max_num_optimal_solutions,
+    #     color="black",
+    #     col="k",
+    #     style="1",
+    #     text=", num opt sol"
+    # )
+    # #tikzplotlib.save("statistics_num_opt_sol_n" + str(n) + ".tex")
+    # plt.savefig("stat_n" + str(n) + "_num_opt_sol.png")
+
+    # plt.clf()
+
     plot(
         m_list,
-        mean_cnots_reduced,
-        var_cnots_reduced,
-        min_cnots_reduced,
-        max_cnots_reduced,
+        mean_cnots_optimal,
+        var_cnots_optimal,
+        min_cnots_optimal,
+        max_cnots_optimal,
         color="green",
         col="g",
         style="x",
@@ -187,69 +301,10 @@ def main(n, num_samples=100):
     )
     #tikzplotlib.save("statistics_cnots_n" + str(n) + "_1.tex")
     plt.savefig("stat_n" + str(n) + "_1.png")
-
-    plot(
-        m_list,
-        mean_cnots,
-        var_cnots,
-        min_cnots,
-        max_cnots,
-        color="blue",
-        col="b",
-        style="o",
-        text=", optimal"
-    )
-    #tikzplotlib.save("statistics_cnots_n" + str(n) + "_2.tex")
-    plt.savefig("stat_n" + str(n) + "_2.png")
-
-    plot(
-        m_list,
-        mean_cnots_chain,
-        var_cnots_chain,
-        min_cnots_chain,
-        max_cnots_chain,
-        color="red",
-        col="r",
-        style="+",
-        text=", $T_{\Delta}$"
-    )
-    #tikzplotlib.save("statistics_cnots_n" + str(n) + "_3.tex")
-    plt.savefig("stat_n" + str(n) + "_3.png")
-
-    plot(
-        m_list,
-        mean_cnots_chain_reduced,
-        var_cnots_chain_reduced,
-        min_cnots_chain_reduced,
-        max_cnots_chain_reduced,
-        color="yellow",
-        col="y",
-        style="1",
-        text=", $T_{\Delta}$, reduced"
-    )
-    #tikzplotlib.save("statistics_cnots_n" + str(n) + "_4.tex")
-    plt.savefig("stat_n" + str(n) + "_4.png")
-
     plt.clf()
 
-    plot(
-        m_list,
-        mean_num_optimal_solutions,
-        var_num_optimal_solutions,
-        min_num_optimal_solutions,
-        max_num_optimal_solutions,
-        color="black",
-        col="k",
-        style="1",
-        text=", num opt sol"
-    )
-    #tikzplotlib.save("statistics_num_opt_sol_n" + str(n) + ".tex")
-    plt.savefig("stat_n" + str(n) + "_num_opt_sol.png")
-
-    plt.clf()
-
-
+    
 if __name__ == "__main__":
     # n=dimension of Hilbert space
-    for n in [3, 4]:
+    for n in [3]:
         main(n)
