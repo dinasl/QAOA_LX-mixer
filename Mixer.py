@@ -48,8 +48,13 @@ class LXMixer:
         whitelist (list[int]): List of logical X operators to include in the mixer (default: None).
         
         family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int representations) to edges (tuples of node indices) connected by the operator.
-        orbits (Dict[Tuple[int,...], Orbit]): A dictionary mapping node tuples to Orbit objects, containing the logical X operators, their respective costs, the Z operators representing the orbit and their total cost.
+        orbits (Dict[Tuple[int,...], Orbit]): A dictionary mapping node tuples to Orbit objects, containing the logical X operators, the Z operators representing the orbit and their total cost.
         S (Stabilizer): Stabilizer object that computes the orbit's respective projectors.
+        
+        best_Xs (List[List[List[int]]]): List(s) of lists of logical X operators that form the best mixers.
+        best_Zs (List[List[List[Tuple[int, int]]]]): List(s) of lists of projectors (Z operators) that form the best mixers.
+        best_combinations (List[List[Tuple[int,...]]]): List(s) of tuples of node indices that form the best mixers.
+        best_cost (int): The cost of the best mixer(s) found.
         
     Methods:
         setB(): Sets the feasible set B for the mixer.
@@ -73,16 +78,12 @@ class LXMixer:
         # self.family_of_valid_graphs_flattened : Dict[int, List[int]] = {}
         self.node_connectors : Dict[int, Dict[int, int]] = {} # Maps nodes to connected nodes to the logical X operators that connect them
         for i in range(self.nB): self.node_connectors[i] = {} # Initializes the node_connectors dictionary for each node
-
-    # Main loop:
-        # LX = LXMixer(B, nL)
-        # LX.compute_family_of_valid_graphs() -> LX.family_of_valid_graphs
-        # LX.compute_all_orbits() -> LX.orbits
-        # S = Stabilizer(LX.B, LX.nL, LX.orbits)
-        # S.compute_minimal_generating_sets() -> updates S.orbits and LX.orbits
-        # S.compute_projectors() -> -"-
-        # LX.compute_costs() -> -"-
-        # best_Xs, best_Zs, best_cost = LX.find_best_mixer()
+        self.orbits : Dict[Tuple[int,...], Orbit] = {}
+        
+        self.best_Xs = []
+        self.best_Zs = []
+        self.best_combinations = []
+        self.best_cost: int = float('inf')
 
     def setB(self, B, nL, sort:bool):
         """
@@ -142,13 +143,8 @@ class LXMixer:
     def compute_all_orbits(self): # When in the Stabilizer class, args should be self.family_of_valid_graphs
         """
         Computes all orbits in the family of valid graphs using a depth-first search algorithm.
-        
-        Args:
-            family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int representations) to edges (tuples of node indices) connected by the operator.
-            nB (int): Number of nodes in the feasible set B.
-            
+        Results stored in the `orbits` attribute as a dictionary mapping node tuples to Orbit objects.
         """    
-        self.orbits : Dict[Tuple[int,...], Orbit] = {}
         
         # self.orbits : Dict[List[int], set[int]] = {}
         
@@ -245,7 +241,7 @@ class LXMixer:
                     
     def compute_costs(self):
         """
-        Computes and updates the costs in the Orbit objects in orbits.
+        Computes and updates the costs in the Orbit objects in `orbits`.
         """
         for nodes, orbit in self.orbits.items():
             
@@ -259,15 +255,18 @@ class LXMixer:
             orbit.cost = sum(orbit.X_costs) + orbit.Z_cost
         
     def find_best_mixer(self):
+        """ 
+        Finds the best mixer based on the computed orbits, edges, minimal generating sets, projectors and costs.
+        """
         
-        best_cost = float('inf')
-        best_combinations = []
+        # best_cost = float('inf')
+        # best_combinations = []
         
         if len(self.orbits.keys()) == 1:
-            best_Xs = [list(self.orbits.values())[0].Xs]
-            best_Zs = [list(self.orbits.values())[0].Zs]
-            best_cost = sum(list(self.orbits.values())[0].X_costs) # There is no projector needed
-            return best_Xs, best_Zs, best_cost
+            self.best_Xs = [list(self.orbits.values())[0].Xs]
+            self.best_Zs = [list(self.orbits.values())[0].Zs]
+            self.best_cost = sum(list(self.orbits.values())[0].X_costs) # There is no projector needed
+            # return best_Xs, best_Zs, best_cost
         
         N = range(2, len(self.orbits.keys()))
         for n in N:
@@ -284,28 +283,21 @@ class LXMixer:
                 for orbit_nodes in combination:
                     # cost += sum(self.orbits[orbit_nodes].X_costs[:int(math.log2(len(orbit_nodes)))]) + self.orbits[orbit_nodes].Z_cost
                     cost += self.orbits[orbit_nodes].cost
-                    if cost > best_cost:
+                    if cost > self.best_cost:
                         break
                 # print(f"Cost: {cost}")    
-                if cost < best_cost:
+                if cost < self.best_cost:
                     # print(f"New best combination found: {combination} with cost {cost}")
-                    best_cost = cost
-                    best_combinations = [combination]
-                elif cost == best_cost:
+                    self.best_cost = cost
+                    self.best_combinations = [combination]
+                elif cost == self.best_cost:
                     # print(f"Combination {combination} has the same cost as the best one, adding to the list.")
-                    best_combinations.append(combination)
+                    self.best_combinations.append(combination)
         
-        best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in best_combinations]
-        best_Zs = [[self.orbits[orbit_nodes].Zs for orbit_nodes in combination] for combination in best_combinations]
+        self.best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in self.best_combinations]
+        self.best_Zs = [[self.orbits[orbit_nodes].Zs for orbit_nodes in combination] for combination in self.best_combinations]
         
-        return best_Xs, best_Zs, best_cost    
-                    
-# def is_connected(orbits):
-#     # Short circuit evaluation
-#     for orbit in orbits:
-#         if not any(set(orbit.intersection(set(other_orbit))) for other_orbit in orbits if other_orbit != orbit):
-#             return False
-#     return True
+        # return list(best_combinations), best_Xs, best_Zs, best_cost  
 
 # Standalone code
 
@@ -403,7 +395,8 @@ if __name__ == '__main__':
     
     print("\nFinding best mixer...")
     start_time = time.time()
-    best_Xs, best_Zs, best_cost = lxmixer.find_best_mixer()
+    lxmixer.find_best_mixer()
+    best_combinations, best_Xs, best_Zs, best_cost = lxmixer.best_combinations, lxmixer.best_Xs, lxmixer.best_Zs, lxmixer.best_cost
     end_time = time.time()
     print(f"\nTime: {end_time - start_time:.4f} s")
     print("______________")
