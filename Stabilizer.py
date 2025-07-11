@@ -71,13 +71,6 @@ class Stabilizer:
             #use seed to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
             #found the seed from the 0th element of the tuple, which corresponds to a state saved as a bin int in self.B 
             #TODO reducing the orbit like this does NOT work (makes all the projectors equal????), 
-            k = int(math.log2(len(nodes)))
-            if k != len(orbit.Xs):
-                reduced_orbit_x = set((list(orbit.Xs))[:k])
-                print("orbit Xs: ", orbit.Xs)
-                print("reduced orbit Xs: ", reduced_orbit_x)
-            
-            """NB: the k stuff above is not in use"""
             
             seed = self.B[nodes[0]]
             G0 = [((-1 if (seed >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
@@ -120,6 +113,7 @@ class Stabilizer:
             final_minimal_generating_set_1_orbit = G0 #removed list from list(G0) since it is already a list of tuples
             
             self.orbit_dictionary[nodes].Zs = final_minimal_generating_set_1_orbit
+            print("Minimal generating set for orbit :", nodes, "\nis: ", final_minimal_generating_set_1_orbit)
 
     def compute_projector_stabilizers(self, restricted = False):
         """
@@ -172,11 +166,15 @@ class Stabilizer:
                 #all possible combinations
                 k = len(minimal_generating_set)
                 projector = []
-
-                signs, z_strings = zip(*minimal_generating_set)
-                signs = np.array(signs)
-                z_strings = np.array(z_strings)
-            
+                
+                # TODO Check if minimal_generating_set is empty, might not be necessary if we ensure an actual orbit (now there can be 12 nodes)
+                try: 
+                    signs, z_strings = zip(*minimal_generating_set)
+                    signs = np.array(signs)
+                    z_strings = np.array(z_strings)
+                except ValueError:
+                    print("No minimal generating set found for orbit:", orbit)
+                    continue
                 # Get all binary combinations (2^k × k)
                 all_choices = np.array(list(itertools.product([0, 1], repeat=k)))  # shape (2^k, k)
 
