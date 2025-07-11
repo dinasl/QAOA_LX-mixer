@@ -74,8 +74,8 @@ class Stabilizer:
             k = int(math.log2(len(nodes)))
             if k != len(orbit.Xs):
                 reduced_orbit_x = set((list(orbit.Xs))[:k])
-                print("orbit Xs: ", orbit.Xs)
-                print("reduced orbit Xs: ", reduced_orbit_x)
+                # print("orbit Xs: ", orbit.Xs)
+                # print("reduced orbit Xs: ", reduced_orbit_x)
             
             """NB: the k stuff above is not in use"""
             
@@ -200,7 +200,7 @@ class Stabilizer:
                 # Updating so that we disregard the minimal generating sets and only keep the projectors 
                 orbit.Zs = projector #changed to projector from projectors
 
-                print("Projector for a given orbit: ", orbit.Zs)
+                # print("Projector for a given orbit: ", orbit.Zs)
 """
 B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
 orbit_dictionary = {"hei":"hei"}
