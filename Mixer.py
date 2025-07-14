@@ -272,27 +272,27 @@ class LXMixer:
         N = range(2, len(self.orbits.keys()))
         for n in N:
             for combination in combinations(self.orbits.keys(), n):
-                print(f"\nChecking combination: {combination}")
+                # print(f"\nChecking combination: {combination}")
                 if len(set([node for nodes in combination for node in nodes])) != self.nB:
-                    print(f"Combination does not cover all nodes, skipping.")
+                    # print(f"Combination does not cover all nodes, skipping.")
                     continue
                 if not is_connected(combination):
-                    print(f"Combination is not connected, skipping.")
+                    # print(f"Combination is not connected, skipping.")
                     continue
-                print(f"Combination is connected, computing cost...")
+                # print(f"Combination is connected, computing cost...")
                 cost = 0
                 for orbit_nodes in combination:
                     # cost += sum(self.orbits[orbit_nodes].X_costs[:int(math.log2(len(orbit_nodes)))]) + self.orbits[orbit_nodes].Z_cost
                     cost += self.orbits[orbit_nodes].cost
                     if cost > best_cost:
                         break
-                print(f"Cost: {cost}")    
+                # print(f"Cost: {cost}")    
                 if cost < best_cost:
-                    print(f"New best combination found: {combination} with cost {cost}")
+                    # print(f"New best combination found: {combination} with cost {cost}")
                     best_cost = cost
                     best_combinations = [combination]
                 elif cost == best_cost:
-                    print(f"Combination {combination} has the same cost as the best one, adding to the list.")
+                    # print(f"Combination {combination} has the same cost as the best one, adding to the list.")
                     best_combinations.append(combination)
         
         best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in best_combinations]
@@ -310,7 +310,6 @@ class LXMixer:
 # Standalone code
 
 if __name__ == '__main__':
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
     # B = [
     #     0b00001,
     #     0b00010,
@@ -338,40 +337,79 @@ if __name__ == '__main__':
     #     0b00110,
     #     0b01110
     # ]
+    import time
+    
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
+    print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
+    
     lxmixer = LXMixer(B, 4)
     # lxmixer = LXMixer(B, 5)
 
+    print("\nComputing family of valid graphs...")
+    start_time = time.time()
     lxmixer.compute_family_of_valid_graphs()
+    end_time = time.time()
+    print(f"\nTime: {end_time - start_time:.4f} s")
+    print("______________")
 
     print("\nFamily of valid graphs:")
     for k, v in lxmixer.family_of_valid_graphs.items():
         print(f"{k:0{lxmixer.nL}b} : {v}")
 
+    print("\nComputing all orbits...")
+    start_time = time.time()
     lxmixer.compute_all_orbits()
+    end_time = time.time()
+    print(f"\nTime: {end_time - start_time:.4f} s")
+    print("______________")
+    
+    # print("\nnode_connectors =")
+    # for k, v in lxmixer.node_connectors.items():
+    #     print(f"{k}")
+    #     for neighbor, X in v.items():
+    #         print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
 
-    print("\nnode_connectors:")
-    for k, v in lxmixer.node_connectors.items():
-        print(f"{k}")
-        for neighbor, X in v.items():
-            print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
-
-    print("Orbits:")
+    print("\nOrbits (without projectors and costs):")
     for nodes, orbit in lxmixer.orbits.items():
         print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
-        
-    S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits)
-    S.compute_minimal_generating_sets()
-    S.compute_projector_stabilizers()
     
+    S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits)
+    
+    print("\nComputing minimal generating sets...")
+    start_time = time.time()
+    S.compute_minimal_generating_sets()
+    end_time = time.time()
+    print(f"\nTime: {end_time - start_time:.4f} s")
+    print("______________")
+    
+    print("\nComputing projectors...")
+    start_time = time.time()
+    S.compute_projector_stabilizers()
+    end_time = time.time()
+    print(f"\nTime: {end_time - start_time:.4f} s")
+    print("______________")
+    
+    print("\nComputing costs...")
+    start_time = time.time()
     lxmixer.compute_costs()
+    end_time = time.time()
+    print(f"\nTime: {end_time - start_time:.4f} s")
+    print("______________")
+    
     print("\nOrbits with projectors and costs:")
     for nodes, orbit in lxmixer.orbits.items():
-        print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
-        print(f"  Projectors: {', '.join(f'{"+" if Z[0] == 1 else "-"}{Z[1]:0{lxmixer.nL}b}' for Z in orbit.Zs if len(Z) == 2)}")
-        print(f"  Cost: {orbit.cost}")
+        print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}], Zs = [{', '.join(f'{"+" if Z[0] == 1 else "-"}{Z[1]:0{lxmixer.nL}b}' for Z in orbit.Zs if len(Z) == 2)}]")
+        print(f"cost = {orbit.cost}")
+    
+    print("\nFinding best mixer...")
+    start_time = time.time()
     best_Xs, best_Zs, best_cost = lxmixer.find_best_mixer()
+    end_time = time.time()
+    print(f"\nTime: {end_time - start_time:.4f} s")
+    print("______________")
+    
     print(f"\nFound {len(best_Xs)} best combinations of orbits with cost {best_cost}.")
-    print("Best mixer:")
+    print("\nBest mixer:")
     print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f"{x:0{lxmixer.nL}b}" for x in sub_Xs)}]" for sub_Xs in Xs)}]' for Xs in best_Xs)}]")
-    print("Best projectors:")
+    print("\nBest projectors:")
     print(f"[{', '.join(f'[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in Z)}]' for sub_Zs in best_Zs for Z in sub_Zs)}]")    
