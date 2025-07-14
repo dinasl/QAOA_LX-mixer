@@ -6,7 +6,7 @@ from itertools import combinations
 import math
 
 from Stabilizer import *
-from utils import ncnot, is_connected
+from utils import ncnot, is_connected, split_into_suborbits
 from plot_mixers import plot_mixer_graph
 
 # TODO: Implement method for directed graphs (digraph=True). Only for visual representation.
@@ -160,6 +160,7 @@ class LXMixer:
 
         processed_nodes = set() # Nodes in (>2) orbit 
         processed_prefixes = set()
+        same_nodes = 0
 
         for seed in range(self.nB):
             if seed in processed_nodes: # Skip to the next seed that is not already in a (>2) orbit
@@ -172,24 +173,22 @@ class LXMixer:
             
             while stack:
                 current_path, available_Xs, current_nodes = stack.pop() # Bakctracking step: processes each state in last-in-first-out order
-                # current_path: sequence of X operators applied so far
-                # available_Xs: set of X operators that can still be applied
-                # current_nodes: current nodes in orbit
                                 
                 path_tuple = tuple(sorted(current_path))
                 current_nodes_tuple = tuple(sorted(current_nodes))
                 
-                if path_tuple in processed_prefixes:
-                    continue # If path has already been processed, backtrack
-                processed_prefixes.add(path_tuple) # Add the current path to the processed prefixes
+                # if path_tuple in processed_prefixes:
+                #     continue # If path has already been processed, backtrack
+                # processed_prefixes.add(path_tuple) # Add the current path to the processed prefixes
                 
-                if (len(current_nodes) > 2 and len(current_path) > 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit
+                if (len(current_nodes) > 2 and len(current_path) > 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit # TODO
                     
-                    if not any(path_tuple == tuple(sorted([X])) for orbit in self.orbits.values() for X in orbit.Xs):
+                    # if not any(path_tuple == tuple(sorted([X])) for orbit in self.orbits.values() for X in orbit.Xs):
+                    if not any(path_tuple == tuple(sorted(orbit.Xs)) for orbit in self.orbits.values()):
                         # self.orbits.append(list(current_path))
                         # self.nodes.append(list(current_nodes))
                         
-                        # Create a new Orbit object if it doesn't exist
+                    # Create a new Orbit object if it doesn't exist
                         if current_nodes_tuple not in self.orbits.keys():
                             self.orbits[current_nodes_tuple] = Orbit(Xs=list(current_path))
                         else:
@@ -214,18 +213,25 @@ class LXMixer:
                 
                 if len(current_path) == len(seed_Xs): # If the path is |B|-1 long, backtrack
                     continue
-                
+                                
                 for x, X in enumerate(available_Xs): # Iterate over all the next paths in decision tree
                     new_path = current_path + [X]
-                    new_available = available_Xs[x+1:]
+                    if tuple(sorted(new_path)) in processed_prefixes:
+                        continue
+                    else:
+                        processed_prefixes.add(tuple(sorted(new_path)))
+                    
+                    new_available = available_Xs[:x] + available_Xs[x+1:] # available_Xs - {X}
                     
                     if len(current_path) == 0: # If no path has been taken yet, the new nodes are the ones connected by the first X operator
                         new_nodes = [node for u, v in self.family_of_valid_graphs[X] for node in (u, v)]                    
                     else: 
                         # Sets of nodes that form orbits cannot have edges going out of them
-                        new_nodes = list({node for u, v in self.family_of_valid_graphs[X] if u in current_nodes and v in current_nodes for node in (u, v)})
+                        new_nodes = [node for u, v in self.family_of_valid_graphs[X] if u in current_nodes and v in current_nodes for node in (u, v)]
+                        if set(current_nodes) == set(new_nodes):
+                            same_nodes += 1
                         
-                        if not new_nodes: # If the path doesn't lead anywhere, don't add it to the stack
+                        if len(new_nodes) == 0: # If the path doesn't lead anywhere, don't add it to the stack
                             continue
                     
                     stack.append((new_path, new_available, new_nodes)) # Add valid paths to the stack
@@ -239,6 +245,18 @@ class LXMixer:
                     
                     # self.orbits.append([X])
                     # self.nodes.append(sorted([seed, neighbor]))
+        
+        # # Split unconnected graphs into suborbits
+        # orbit_nodes_to_check = list(self.orbits.keys())
+        # for nodes in orbit_nodes_to_check:
+        #     Xs = self.orbits[nodes].Xs
+        #     if len(Xs) < len(nodes)-1:
+        #         new_orbits = split_into_suborbits(self.family_of_valid_graphs, Xs, nodes)
+        #         self.orbits.pop(nodes)
+        #         for new_orbit in new_orbits:
+        #             self.orbits[tuple(sorted(new_orbit))] = Orbit(Xs=Xs)
+        
+        print(len(self.orbits), same_nodes)
                     
     def compute_costs(self):
         """
@@ -303,6 +321,9 @@ class LXMixer:
 # Standalone code
 
 if __name__ == '__main__':
+    
+    import time
+    
     # B = [
     #     0b00001,
     #     0b00010,
@@ -319,7 +340,7 @@ if __name__ == '__main__':
     #     0b10010,
     #     0b10100,
     #     0b11000
-    # ]
+    # ] # |B| = 15, nL = 5
     # B = [
     #     0b10011,
     #     0b01100,
@@ -329,12 +350,12 @@ if __name__ == '__main__':
     #     0b10100,
     #     0b00110,
     #     0b01110
-    # ]
-    import time
+    # ] # |B| = 8, nL = 5
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
+         0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
+    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
     
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111]
-    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011]
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
     lxmixer = LXMixer(B, 4)
@@ -367,6 +388,8 @@ if __name__ == '__main__':
     print("\nOrbits (without projectors and costs):")
     for nodes, orbit in lxmixer.orbits.items():
         print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
+    
+    """
     
     S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits)
     
@@ -411,3 +434,4 @@ if __name__ == '__main__':
     print(f"[{', '.join(f'[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in Z)}]' for sub_Zs in best_Zs for Z in sub_Zs)}]")    
     
     plot_mixer_graph(lxmixer)
+    """
