@@ -166,9 +166,10 @@ class LXMixer:
             
             stack = [] # Stack for depth-first search
             stack.append(([], seed_Xs, set([seed]))) # Initialize
-            
+            # print(stack.pop())
             while stack:
                 current_path, available_Xs, current_nodes = stack.pop() # Bakctracking step: processes each state in last-in-first-out order
+                # if 0b0110 in available_Xs: print("Yes")
                                 
                 path_tuple = tuple(sorted(current_path))
                 current_nodes_tuple = tuple(sorted(current_nodes))
@@ -190,6 +191,7 @@ class LXMixer:
                     continue
                                 
                 for x, X in enumerate(available_Xs): # Iterate over all the next paths in decision tree
+                    # if X == 0b0110: print("X = 0110")
                     if X == 0b0100: print("X = 0100")
                     new_path = current_path + [X]
                     if tuple(sorted(new_path)) in processed_prefixes:
@@ -208,7 +210,7 @@ class LXMixer:
                         if set(current_nodes) == set(new_nodes):
                             same_nodes += 1
                         
-                        if len(new_nodes) == 0: # If the path doesn't lead anywhere, don't add it to the stack
+                        if len(new_nodes) == 0 or seed not in new_nodes: # If the path doesn't lead anywhere, don't add it to the stack # THIS IS NEWWWW
                             continue
                     
                     stack.append((new_path, new_available, new_nodes)) # Add valid paths to the stack
@@ -350,11 +352,11 @@ if __name__ == '__main__':
     print(f"\nTime: {end_time - start_time:.4f} s")
     print("______________")
     
-    print("\nnode_connectors =")
-    for k, v in lxmixer.node_connectors.items():
-        print(f"{k}")
-        for neighbor, X in v.items():
-            print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
+    # print("\nnode_connectors =")
+    # for k, v in lxmixer.node_connectors.items():
+    #     print(f"{k}")
+    #     for neighbor, X in v.items():
+    #         print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
 
     print("\nOrbits (without projectors and costs):")
     for nodes, orbit in lxmixer.orbits.items():
