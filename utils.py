@@ -1,3 +1,6 @@
+import math
+import networkx as nx
+
 is_power_of_two = lambda x: (x > 0) and (x & (x - 1)) == 0
 
 def ncnot(P) :
@@ -74,3 +77,57 @@ def is_connected(orbits):
         if not any(set(orbit).intersection(set(other_orbit)) for other_orbit in orbits if other_orbit != orbit):
             return False
     return True
+
+def split_into_suborbits(family_of_valid_graphs, operators, nodes = None):
+    """
+    Splits a set of nodes into suborbits based on the provided operators and family of valid graphs.
+
+    Args:
+        family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int representations) to edges (tuples of node indices) connected by the operator. 
+        operators (list): A list of logical X operators (int representations) that makes up the suborbits.
+
+    Returns:
+        List[set()]: A list of suborbits in sets with the nodes that are connected by the operators. 
+    """
+    suborbit_size = len(operators) + 1
+    
+    print("suborbit size: ", suborbit_size)
+    print("Number of nodes: ", len(nodes))
+    
+    # Finds how many X operators are needed to cover the suborbit
+    least_number_of_operators = int(math.log2(suborbit_size))
+
+    all_edges = []
+
+    # Iterates through needed number of operators
+    for operator in operators[:least_number_of_operators]:
+        list_of_edges = family_of_valid_graphs[operator] #TODO can these nodes in list of edges be outside the nodes for the orbit?
+        # Only include edges where both nodes are in the specified nodes set
+        all_edges += [edge for edge in list_of_edges if all(node in nodes for node in edge)]  
+        #all_edges += list_of_edges TODO option 2: could it be more efficeent to filter out solutions later?
+    
+    G = nx.Graph()
+    G.add_edges_from(all_edges)
+
+    suborbits = list(nx.connected_components(G))
+    #suborbits = [suborbit for suborbit in nx.connected_components(G) if len(suborbit) == suborbit_size] TODO option 2
+
+    return suborbits
+
+if __name__ == '__main__':
+    suborbits = split_into_suborbits(family_of_valid_graphs={0b0010 : [(0, 1), (2, 7), (3, 9), (4, 13), (5, 10), (6, 8), (11, 14)],
+    0b0111 : [(0, 2), (1, 7), (3, 4), (5, 14), (6, 12), (9, 13), (10, 11)],
+    0b1010 : [(0, 3), (1, 9), (2, 4), (6, 11), (7, 13), (8, 14), (10, 12)],
+    0b1101 : [(0, 4), (1, 13), (2, 3), (5, 8), (6, 10), (7, 9), (11, 12)],
+    0b1110 : [(0, 5), (1, 10), (2, 14), (4, 8), (6, 13), (7, 11), (9, 12)],
+    0b0001 : [(0, 6), (1, 8), (2, 12), (3, 11), (4, 10), (5, 13), (9, 14)],
+    0b0101 : [(0, 7), (1, 2), (3, 13), (4, 9), (5, 11), (8, 12), (10, 14)],
+    0b0011 : [(0, 8), (1, 6), (3, 14), (4, 5), (7, 12), (9, 11), (10, 13)],
+    0b1000 : [(0, 9), (1, 3), (2, 13), (4, 7), (5, 12), (6, 14), (8, 11)],
+    0b1100 : [(0, 10), (1, 5), (2, 11), (3, 12), (4, 6), (7, 14), (8, 13)],
+    0b1011 : [(0, 11), (1, 14), (2, 10), (3, 6), (4, 12), (5, 7), (8, 9)],
+    0b0110 : [(0, 12), (2, 6), (3, 10), (4, 11), (5, 9), (7, 8), (13, 14)],
+    0b1111 : [(0, 13), (1, 4), (2, 9), (3, 7), (5, 6), (8, 10), (12, 14)],
+    0b1001 : [(0, 14), (1, 11), (2, 5), (3, 8), (6, 9), (7, 10), (12, 13)],
+    0b0100 : [(1, 12), (2, 8), (3, 5), (4, 14), (6, 7), (9, 10), (11, 13)]}, operators=[0b1001, 0b0110, 0b111], nodes=(0, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14))
+    print("suborbits: ", suborbits)
