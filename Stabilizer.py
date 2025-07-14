@@ -199,25 +199,27 @@ class Stabilizer:
                 orbit.Zs = projector #changed to projector from projectors
 
                 print("Projector for a given orbit: ", orbit.Zs)
-"""
-B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
-orbit_dictionary = {"hei":"hei"}
-#compute_minimal_generating_set(B, 4)
-B1 = [0b11101, 0b01010, 0b10011, 0b00110]
-G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
-#compute_restricted_projector_stabilizer(B1, 5)
 
-stabilizer = Stabilizer(B=B, n=4, orbit_dictionary={})
-#stabilizer.check_if_orbit()
-stabilizer.compute_minimal_generating_sets()
-#stabilizer.compute_projector_stabilizers()
+if __name__ == '__main__':
+    # TODO does not run, need to make orbit_dictionary first
+    B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
+    orbit_dictionary = {"hei":"hei"}
+    #compute_minimal_generating_set(B, 4)
+    B1 = [0b11101, 0b01010, 0b10011, 0b00110]
+    G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
+    #compute_restricted_projector_stabilizer(B1, 5)
 
-stabilizer2 = Stabilizer(B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
-stabilizer2.check_if_orbit()
-stabilizer2.compute_minimal_generating_sets()
-stabilizer2.compute_projector_stabilizers()
-print(stabilizer2.print_values())
-"""
+    stabilizer = Stabilizer(B=B, n=4, orbit_dictionary={})
+    #stabilizer.check_if_orbit()
+    stabilizer.compute_minimal_generating_sets()
+    #stabilizer.compute_projector_stabilizers()
+
+    stabilizer2 = Stabilizer(B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
+    stabilizer2.check_if_orbit()
+    stabilizer2.compute_minimal_generating_sets()
+    stabilizer2.compute_projector_stabilizers()
+    print(stabilizer2.print_values())
+    
 
 
 

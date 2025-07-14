@@ -11,14 +11,12 @@ from random import sample
 import time
 from Mixer import *
 
-# # Importing necessary classes from Mixer module
-# import sys
-# sys.path.append(r"C:\Users\sanne\LogicalXMixer")
-# from Mixer_Franz import MixerFranz
+# Importing necessary classes from Mixer module
+import sys
+sys.path.append(r"C:\Users\sanne\LogicalXMixer")
+from Mixer_Franz import MixerFranz
 
-# m = Mixer(B=["100", "010", "001", "110", "101", "011", "111"])
 
-# print(m)
 class Worker:
 
     """n = dim(hilbert space)"""
@@ -31,45 +29,75 @@ class Worker:
     def sample_B(self, m):
         """m = |B|"""
         binary_strings = sample(self.all_states, m)
-        # Convert binary strings to integers for LXMixer
-        return [int(binary_str, 2) for binary_str in binary_strings]
+        binary_integers = [int(binary_str, 2) for binary_str in binary_strings]
+        # Return both formats for flexibility
+        return binary_strings, binary_integers
+    
 
-    def get_costs(self, B):
+    def get_costs(self, B_strings, B_integers):
         nL = self.n  # Use the stored number of qubits
         
-        # Finding the cnot cost for a given B and nL
-        # Note: keeping loop structure for future chain mixer comparison
-        for chain in [True, False]:
-            if chain:
-                # Future: chain mixer implementation
-                continue
-            else:
-                # The LXMixer class
-                mixer = LXMixer(B, nL)
-                mixer.compute_family_of_valid_graphs()
-                mixer.compute_all_orbits()
-                stabilizer = Stabilizer(B=mixer.B, n=mixer.nL, orbit_dictionary=mixer.orbits)
-                stabilizer.compute_minimal_generating_sets()
-                stabilizer.compute_projector_stabilizers()
-                mixer.compute_costs()
+        # Finding the cnot cost for both Franz mixer (strings) and LXMixer (integers)
+        results = {}
+        
+        # Franz mixer (uses strings) - following the exact pattern from random_B_franz_string.py
+        try:
+            # Replicate the exact pattern from random_B_franz_string.py
+            cnots = None
+            cnots_reduced = None
+            
+            for chain in [True, False]:
+                for reduced in [True, False]:
+                    mixer_franz = MixerFranz(B_strings, reduced=reduced)
+                    
+                    if chain:
+                        mixer_franz.get_chain_mixer()
+                    else:
+                        mixer_franz.get_best_mixer_commuting_graphs()
+                    
+                    if chain and reduced:
+                        cnots_chain_reduced = mixer_franz.solution_chain_reduced_cost
+                    elif chain and (not reduced):
+                        cnots_chain = mixer_franz.solution_chain_cost
+                    elif (not chain) and reduced:
+                        cnots_reduced = mixer_franz.solution_reduced_cost
+                    else:
+                        cnots = mixer_franz.solution_cost
+            
+            # Use the "optimal" case (not chain, not reduced)
+            results['franz'] = cnots
+            print(f"Franz mixer - optimal cost: {cnots}")
+            
+        except Exception as e:
+            print(f"Error with Franz mixer: {e}")
+            import traceback
+            traceback.print_exc()
+            results['franz'] = float('inf')
+        
+        # LXMixer (uses integers)
+        try:
+            mixer = LXMixer(B_integers, nL)
+            mixer.compute_family_of_valid_graphs()
+            mixer.compute_all_orbits()
+            stabilizer = Stabilizer(B=mixer.B, n=mixer.nL, orbit_dictionary=mixer.orbits)
+            stabilizer.compute_minimal_generating_sets()
+            stabilizer.compute_projector_stabilizers()
+            mixer.compute_costs()
+            
+            best_Xs, best_Zs, best_cost = mixer.find_best_mixer()
+            results['lxmixer'] = best_cost
+        except Exception as e:
+            print(f"Error with LXMixer: {e}")
+            results['lxmixer'] = float('inf')
 
-                # Find the best mixer configuration
-                best_Xs, best_Zs, best_cost = mixer.find_best_mixer()
-                cnots_optimal = best_cost
-                break  # Exit loop after processing LXMixer
-
-        print("cnots_optimal", cnots_optimal)
-        return cnots_optimal#cnots, cnots_chain, num_optimal_solutions
+        print(f"Franz: {results['franz']}, LXMixer: {results['lxmixer']}")
+        return results['franz'], results['lxmixer']
 
 
 def saveResult(res):
-    global cnots_optimal #cnots, cnots_reduced, cnots_chain, cnots_chain_reduced, num_optimal_solutions
-    cnots_optimal.append(res)
-    # cnots.append(res[0])
-    # cnots_reduced.append(res[1])
-    # cnots_chain.append(res[2])
-    # cnots_chain_reduced.append(res[3])
-    # num_optimal_solutions.append(res[4])
+    global cnots_franz, cnots_lxmixer
+    cnots_franz.append(res[0])
+    cnots_lxmixer.append(res[1])
 
 
 def plot(m_list, mean_cnots, var_cnots, min_cnots, max_cnots, color, col, style, text):
@@ -100,12 +128,13 @@ def main(n, num_samples=100):
     print("n=", n)
     worker = Worker(n, checkmixer=False)
 
-    # TODO this is a new loop for debugging... Test the worker directly first
+    # Test the worker directly first
     print("Testing worker.get_costs directly...")
     try:
-        test_B = worker.sample_B(2)
-        print(f"Test B: {test_B}")
-        test_result = worker.get_costs(test_B)
+        test_B_strings, test_B_integers = worker.sample_B(2)
+        print(f"Test B strings: {test_B_strings}")
+        print(f"Test B integers: {test_B_integers}")
+        test_result = worker.get_costs(test_B_strings, test_B_integers)
         print(f"Test result: {test_result}")
     except Exception as e:
         print(f"Error in direct test: {e}")
@@ -116,202 +145,143 @@ def main(n, num_samples=100):
     # m = |B|
     m_list = list(range(2, 2**n + 1))
 
-    # run
-    # time_list = np.zeros(len(m_list))
+    # Arrays for Franz mixer
+    min_cnots_franz = np.zeros(len(m_list))
+    max_cnots_franz = np.zeros(len(m_list))
+    mean_cnots_franz = np.zeros(len(m_list))
+    var_cnots_franz = np.zeros(len(m_list))
 
-    min_cnots_optimal = np.zeros(len(m_list))
-    max_cnots_optimal = np.zeros(len(m_list))
-    mean_cnots_optimal = np.zeros(len(m_list))
-    var_cnots_optimal = np.zeros(len(m_list))
-
-    # min_cnots = np.zeros(len(m_list))
-    # max_cnots = np.zeros(len(m_list))
-    # mean_cnots = np.zeros(len(m_list))
-    # var_cnots = np.zeros(len(m_list))
-
-    # min_cnots_reduced = np.zeros(len(m_list))
-    # max_cnots_reduced = np.zeros(len(m_list))
-    # mean_cnots_reduced = np.zeros(len(m_list))
-    # var_cnots_reduced = np.zeros(len(m_list))
-
-    # min_cnots_chain = np.zeros(len(m_list))
-    # max_cnots_chain = np.zeros(len(m_list))
-    # mean_cnots_chain = np.zeros(len(m_list))
-    # var_cnots_chain = np.zeros(len(m_list))
-
-    # min_cnots_chain_reduced = np.zeros(len(m_list))
-    # max_cnots_chain_reduced = np.zeros(len(m_list))
-    # mean_cnots_chain_reduced = np.zeros(len(m_list))
-    # var_cnots_chain_reduced = np.zeros(len(m_list))
-
-    # min_num_optimal_solutions = np.zeros(len(m_list))
-    # max_num_optimal_solutions = np.zeros(len(m_list))
-    # mean_num_optimal_solutions = np.zeros(len(m_list))
-    # var_num_optimal_solutions = np.zeros(len(m_list))
+    # Arrays for LXMixer
+    min_cnots_lxmixer = np.zeros(len(m_list))
+    max_cnots_lxmixer = np.zeros(len(m_list))
+    mean_cnots_lxmixer = np.zeros(len(m_list))
+    var_cnots_lxmixer = np.zeros(len(m_list))
 
     for i, m in enumerate(m_list):
-        global cnots_optimal #cnots, cnots_reduced, cnots_chain, cnots_chain_reduced, num_optimal_solutions
-        # cnots = []
-        # cnots_reduced = []
-        # cnots_chain = []
-        # cnots_chain_reduced = []
-        # num_optimal_solutions = []
-        cnots_optimal = []
+        print(f"\nProcessing m={m} (|B|={m}) - {i+1}/{len(m_list)}")
+        global cnots_franz, cnots_lxmixer
+        cnots_franz = []
+        cnots_lxmixer = []
+        
         pool = Pool()
         results = []
         for j in range(num_samples):
+            B_strings, B_integers = worker.sample_B(m)
             result = pool.apply_async(
-                worker.get_costs, args=(worker.sample_B(m),), callback=saveResult
+                worker.get_costs, args=(B_strings, B_integers), callback=saveResult
             )
-            # try:
-            #     deb.get()
-            # except Exception as e:
-            #     print("Exception in worker.run:", e)
-            #     traceback.print_exc()
             results.append(result)
         pool.close()
         pool.join()
         
-        # TODO this is a new debugging loop (until min_cnots_optimal)... Check for exceptions in the results
+        # Check for exceptions in the results
+        failed_count = 0
         for j, result in enumerate(results):
             try:
                 result.get()  # This will raise any exception that occurred
             except Exception as e:
                 print(f"Exception in worker {j}: {e}")
+                failed_count += 1
                 import traceback
                 traceback.print_exc()
         
-        print(f"Collected {len(cnots_optimal)} results for m={m}")
-        if len(cnots_optimal) == 0:
-            print("No results collected - all tasks failed!")
-            continue  # Skip this m value
+        print(f"Collected {len(cnots_franz)} Franz results and {len(cnots_lxmixer)} LXMixer results for m={m}")
+        print(f"Failed: {failed_count}/{num_samples}")
+        
+        if len(cnots_franz) == 0 or len(cnots_lxmixer) == 0:
+            print(f"No results collected for m={m} - all tasks failed!")
+            # Set to NaN instead of skipping to maintain array indices
+            min_cnots_franz[i] = np.nan
+            max_cnots_franz[i] = np.nan
+            mean_cnots_franz[i] = np.nan
+            var_cnots_franz[i] = np.nan
+            min_cnots_lxmixer[i] = np.nan
+            max_cnots_lxmixer[i] = np.nan
+            mean_cnots_lxmixer[i] = np.nan
+            var_cnots_lxmixer[i] = np.nan
+            continue
 
-        min_cnots_optimal[i] = np.min(cnots_optimal)
-        max_cnots_optimal[i] = np.max(cnots_optimal)
-        mean_cnots_optimal[i] = np.mean(cnots_optimal)
-        var_cnots_optimal[i] = np.var(cnots_optimal)
+        # Calculate statistics for Franz mixer
+        min_cnots_franz[i] = np.min(cnots_franz)
+        max_cnots_franz[i] = np.max(cnots_franz)
+        mean_cnots_franz[i] = np.mean(cnots_franz)
+        var_cnots_franz[i] = np.var(cnots_franz)
 
-        # min_cnots[i] = np.min(cnots)
-        # max_cnots[i] = np.max(cnots)
-        # mean_cnots[i] = np.mean(cnots)
-        # var_cnots[i] = np.var(cnots)
-
-        # min_cnots_reduced[i] = np.min(cnots_reduced)
-        # max_cnots_reduced[i] = np.max(cnots_reduced)
-        # mean_cnots_reduced[i] = np.mean(cnots_reduced)
-        # var_cnots_reduced[i] = np.var(cnots_reduced)
-
-        # min_cnots_chain[i] = np.min(cnots_chain)
-        # max_cnots_chain[i] = np.max(cnots_chain)
-        # mean_cnots_chain[i] = np.mean(cnots_chain)
-        # var_cnots_chain[i] = np.var(cnots_chain)
-
-        # min_cnots_chain_reduced[i] = np.min(cnots_chain_reduced)
-        # max_cnots_chain_reduced[i] = np.max(cnots_chain_reduced)
-        # mean_cnots_chain_reduced[i] = np.mean(cnots_chain_reduced)
-        # var_cnots_chain_reduced[i] = np.var(cnots_chain_reduced)
-
-        # min_num_optimal_solutions[i] = np.min(num_optimal_solutions)
-        # max_num_optimal_solutions[i] = np.max(num_optimal_solutions)
-        # mean_num_optimal_solutions[i] = np.mean(num_optimal_solutions)
-        # var_num_optimal_solutions[i] = np.var(num_optimal_solutions)
+        # Calculate statistics for LXMixer
+        min_cnots_lxmixer[i] = np.min(cnots_lxmixer)
+        max_cnots_lxmixer[i] = np.max(cnots_lxmixer)
+        mean_cnots_lxmixer[i] = np.mean(cnots_lxmixer)
+        var_cnots_lxmixer[i] = np.var(cnots_lxmixer)
 
         print(int(100 * (i + 1) / len(m_list)), "%")
 
-    fig = plt.figure()
+    # Print final data summary
+    print(f"\nFinal data summary:")
+    print(f"m_list: {m_list}")
+    print(f"Franz means: {mean_cnots_franz}")
+    print(f"LXMixer means: {mean_cnots_lxmixer}")
+    print(f"Franz has {np.sum(~np.isnan(mean_cnots_franz))} valid values")
+    print(f"LXMixer has {np.sum(~np.isnan(mean_cnots_lxmixer))} valid values")
 
-    # plot(
-    #     m_list,
-    #     mean_cnots_reduced,
-    #     var_cnots_reduced,
-    #     min_cnots_reduced,
-    #     max_cnots_reduced,
-    #     color="green",
-    #     col="g",
-    #     style="x",
-    #     text=", optimal reduced"
-    # )
-    # #tikzplotlib.save("statistics_cnots_n" + str(n) + "_1.tex")
-    # plt.savefig("stat_n" + str(n) + "_1.png")
+    # Create comparison plot
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    # plot(
-    #     m_list,
-    #     mean_cnots,
-    #     var_cnots,
-    #     min_cnots,
-    #     max_cnots,
-    #     color="blue",
-    #     col="b",
-    #     style="o",
-    #     text=", optimal"
-    # )
-    # #tikzplotlib.save("statistics_cnots_n" + str(n) + "_2.tex")
-    # plt.savefig("stat_n" + str(n) + "_2.png")
+    # Filter out NaN values for plotting
+    valid_indices = ~(np.isnan(mean_cnots_franz) | np.isnan(mean_cnots_lxmixer))
+    m_list_valid = np.array(m_list)[valid_indices]
+    
+    if len(m_list_valid) == 0:
+        print("No valid data points to plot!")
+        return
+    
+    mean_franz_valid = mean_cnots_franz[valid_indices]
+    var_franz_valid = var_cnots_franz[valid_indices]
+    min_franz_valid = min_cnots_franz[valid_indices]
+    max_franz_valid = max_cnots_franz[valid_indices]
+    
+    mean_lxmixer_valid = mean_cnots_lxmixer[valid_indices]
+    var_lxmixer_valid = var_cnots_lxmixer[valid_indices]
+    min_lxmixer_valid = min_cnots_lxmixer[valid_indices]
+    max_lxmixer_valid = max_cnots_lxmixer[valid_indices]
 
-    # plot(
-    #     m_list,
-    #     mean_cnots_chain,
-    #     var_cnots_chain,
-    #     min_cnots_chain,
-    #     max_cnots_chain,
-    #     color="red",
-    #     col="r",
-    #     style="+",
-    #     text=", $T_{\Delta}$"
-    # )
-    # #tikzplotlib.save("statistics_cnots_n" + str(n) + "_3.tex")
-    # plt.savefig("stat_n" + str(n) + "_3.png")
-
-    # plot(
-    #     m_list,
-    #     mean_cnots_chain_reduced,
-    #     var_cnots_chain_reduced,
-    #     min_cnots_chain_reduced,
-    #     max_cnots_chain_reduced,
-    #     color="yellow",
-    #     col="y",
-    #     style="1",
-    #     text=", $T_{\Delta}$, reduced"
-    # )
-    # #tikzplotlib.save("statistics_cnots_n" + str(n) + "_4.tex")
-    # plt.savefig("stat_n" + str(n) + "_4.png")
-
-    # plt.clf()
-
-    # plot(
-    #     m_list,
-    #     mean_num_optimal_solutions,
-    #     var_num_optimal_solutions,
-    #     min_num_optimal_solutions,
-    #     max_num_optimal_solutions,
-    #     color="black",
-    #     col="k",
-    #     style="1",
-    #     text=", num opt sol"
-    # )
-    # #tikzplotlib.save("statistics_num_opt_sol_n" + str(n) + ".tex")
-    # plt.savefig("stat_n" + str(n) + "_num_opt_sol.png")
-
-    # plt.clf()
-
-    plot(
-        m_list,
-        mean_cnots_optimal,
-        var_cnots_optimal,
-        min_cnots_optimal,
-        max_cnots_optimal,
-        color="green",
-        col="g",
-        style="x",
-        text=", optimal reduced"
+    # Plot Franz mixer results
+    plt.plot(m_list_valid, mean_franz_valid, "o-b", label="Franz Mixer (mean)")
+    plt.fill_between(
+        m_list_valid,
+        mean_franz_valid - np.sqrt(var_franz_valid),
+        mean_franz_valid + np.sqrt(var_franz_valid),
+        color="blue",
+        alpha=0.35,
+        label="Franz Mixer (1σ)"
     )
-    #tikzplotlib.save("statistics_cnots_n" + str(n) + "_1.tex")
-    plt.savefig("stat_n" + str(n) + "_1.png")
+    plt.plot(m_list_valid, min_franz_valid, ":k", alpha=0.7)
+    plt.plot(m_list_valid, max_franz_valid, ":k", alpha=0.7)
+
+    # Plot LXMixer results
+    plt.plot(m_list_valid, mean_lxmixer_valid, "x-r", label="LXMixer (mean)")
+    plt.fill_between(
+        m_list_valid,
+        mean_lxmixer_valid - np.sqrt(var_lxmixer_valid),
+        mean_lxmixer_valid + np.sqrt(var_lxmixer_valid),
+        color="red",
+        alpha=0.35,
+        label="LXMixer (1σ)"
+    )
+    plt.plot(m_list_valid, min_lxmixer_valid, ":k", alpha=0.7)
+    plt.plot(m_list_valid, max_lxmixer_valid, ":k", alpha=0.7)
+
+    plt.legend()
+    plt.xlim(min(m_list_valid), max(m_list_valid))
+    plt.xlabel(r"$|B|$")
+    plt.ylabel("#CNOTS")
+    plt.title(f"Comparison of Franz Mixer vs LXMixer (n={n})")
+    plt.grid()
+    plt.savefig(f"comparison_n{n}.png")
     plt.clf()
 
     
 if __name__ == "__main__":
     pass
     # n=dimension of Hilbert space
-    # for n in [3]:
-    #     main(n)
+    for n in [3]:
+        main(n)

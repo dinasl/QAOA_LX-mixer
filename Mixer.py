@@ -242,70 +242,10 @@ class LXMixer:
                     
                     # self.orbits.append([X])
                     # self.nodes.append(sorted([seed, neighbor]))
-                    
-    def compute_costs(self):
-        """
-        Computes and updates the costs in the Orbit objects in orbits.
-        """
-        for nodes, orbit in self.orbits.items():
-            
-            orbit.Z_cost = sum([ncnot(Z[1]) for Z in orbit.Zs]) if orbit.Zs else 0
-            
-            if math.log2(len(nodes)) < len(orbit.Xs):
-                orbit.Xs, orbit.X_costs = zip(*sorted(zip(orbit.Xs, [ncnot(X) for X in orbit.Xs]), key=lambda x: x[1])[:int(math.log2(len(nodes)))])
-            else:
-                orbit.X_costs = [ncnot(X) for X in orbit.Xs]
-            
-            orbit.cost = sum(orbit.X_costs) + orbit.Z_cost
         
-    def find_best_mixer(self):
-        
-        best_cost = float('inf')
-        best_combinations = []
-        
-        if len(self.orbits.keys()) == 1:
-            best_Xs = [list(self.orbits.values())[0].Xs]
-            best_Zs = [list(self.orbits.values())[0].Zs]
-            best_cost = sum(list(self.orbits.values())[0].X_costs) # There is no projector needed
-            return best_Xs, best_Zs, best_cost
-        
-        N = range(2, len(self.orbits.keys()))
-        for n in N:
-            for combination in combinations(self.orbits.keys(), n):
-                print(f"\nChecking combination: {combination}")
-                if len(set([node for nodes in combination for node in nodes])) != self.nB:
-                    print(f"Combination does not cover all nodes, skipping.")
-                    continue
-                if not is_connected(combination):
-                    print(f"Combination is not connected, skipping.")
-                    continue
-                print(f"Combination is connected, computing cost...")
-                cost = 0
-                for orbit_nodes in combination:
-                    # cost += sum(self.orbits[orbit_nodes].X_costs[:int(math.log2(len(orbit_nodes)))]) + self.orbits[orbit_nodes].Z_cost
-                    cost += self.orbits[orbit_nodes].cost
-                    if cost > best_cost:
-                        break
-                print(f"Cost: {cost}")    
-                if cost < best_cost:
-                    print(f"New best combination found: {combination} with cost {cost}")
-                    best_cost = cost
-                    best_combinations = [combination]
-                elif cost == best_cost:
-                    print(f"Combination {combination} has the same cost as the best one, adding to the list.")
-                    best_combinations.append(combination)
-        
-        best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in best_combinations]
-        best_Zs = [[self.orbits[orbit_nodes].Zs for orbit_nodes in combination] for combination in best_combinations]
-        
-        return best_Xs, best_Zs, best_cost    
-                    
-# def is_connected(orbits):
-#     # Short circuit evaluation
-#     for orbit in orbits:
-#         if not any(set(orbit.intersection(set(other_orbit))) for other_orbit in orbits if other_orbit != orbit):
-#             return False
-#     return True
+    def find_best_mixer(self, S: Stabilizer):
+        return
+
 
 # Standalone code
 
