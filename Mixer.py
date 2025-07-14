@@ -7,6 +7,7 @@ import math
 
 from Stabilizer import *
 from utils import ncnot, is_connected
+from plot_mixers import plot_mixer_graph
 
 # TODO: Implement method for directed graphs (digraph=True). Only for visual representation.
 # TODO: Implement method for reduced graphs (reduced=True)
@@ -331,7 +332,9 @@ if __name__ == '__main__':
     # ]
     import time
     
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011]
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111]
+    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011]
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
     lxmixer = LXMixer(B, 4)
@@ -406,3 +409,5 @@ if __name__ == '__main__':
     print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f"{x:0{lxmixer.nL}b}" for x in sub_Xs)}]" for sub_Xs in Xs)}]' for Xs in best_Xs)}]")
     print("\nBest projectors:")
     print(f"[{', '.join(f'[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in Z)}]' for sub_Zs in best_Zs for Z in sub_Zs)}]")    
+    
+    plot_mixer_graph(lxmixer)
