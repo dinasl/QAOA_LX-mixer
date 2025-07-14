@@ -9,10 +9,16 @@ from matplotlib import pyplot as plt
 import numpy as np
 from random import sample
 import time
-
 from Mixer import *
 
+# # Importing necessary classes from Mixer module
+# import sys
+# sys.path.append(r"C:\Users\sanne\LogicalXMixer")
+# from Mixer_Franz import MixerFranz
 
+# m = Mixer(B=["100", "010", "001", "110", "101", "011", "111"])
+
+# print(m)
 class Worker:
 
     """n = dim(hilbert space)"""
@@ -305,6 +311,7 @@ def main(n, num_samples=100):
 
     
 if __name__ == "__main__":
+    pass
     # n=dimension of Hilbert space
-    for n in [3]:
-        main(n)
+    # for n in [3]:
+    #     main(n)
