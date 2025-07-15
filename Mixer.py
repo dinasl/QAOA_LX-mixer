@@ -215,7 +215,7 @@ class LXMixer:
             
             if not any(seed in nodes for nodes in processed_nodes):
                 for X, neighbour in self.node_connectors[seed].items():
-                    if seed < neighbour: self.orbits[(seed, neighbour)] = Orbit(Xs=[X])
+                    self.orbits[tuple(sorted([seed, neighbour]))] = Orbit(Xs=[X])
                     
         print(len(self.orbits.keys()), "orbits. ", len(set(self.orbits.keys())), "unique orbits found.")
         
@@ -274,6 +274,7 @@ class LXMixer:
             for combination in combinations(self.orbits.keys(), n):
                 # time.sleep(0.05)
                 if len(set([node for nodes in combination for node in nodes])) != self.nB:
+                    print(f"Combination {combination} does not cover all nodes in B, skipping.")
                     continue
                 if not is_connected(combination):
                     continue
@@ -332,14 +333,17 @@ if __name__ == '__main__':
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
-    B = [6, 3, 1, 5, 0, 4, 2]
+    # B = [6, 3, 1, 5, 0, 4, 2] # cost = 0
+    B = [6, 2, 1, 0, 5]
+    # B = [6,5]
 
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
     #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
     
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
-    lxmixer = LXMixer(B, 4)
+    lxmixer = LXMixer(B, 3)
+    # lxmixer = LXMixer(B, 4)
     # lxmixer = LXMixer(B, 5)
 
     print("\nComputing family of valid graphs...")
@@ -360,11 +364,11 @@ if __name__ == '__main__':
     print(f"\nTime: {end_time - start_time:.4f} s")
     print("______________")
     
-    # print("\nnode_connectors =")
-    # for k, v in lxmixer.node_connectors.items():
-    #     print(f"{k}")
-    #     for neighbor, X in v.items():
-    #         print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
+    print("\nnode_connectors =")
+    for k, v in lxmixer.node_connectors.items():
+        print(f"{k}")
+        for neighbor, X in v.items():
+            print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
 
     print("\nOrbits (without projectors and costs):")
     for nodes, orbit in lxmixer.orbits.items():
