@@ -153,51 +153,36 @@ class LXMixer:
                 self.node_connectors[i][j] = X
                 self.node_connectors[j][i] = X
 
-        processed_nodes = set() # Nodes in (>2) orbit 
-        processed_prefixes = set()
-        same_nodes = 0
+        processed_nodes = [] # Nodes in (>2) orbit 
+        # processed_nodes = set()
 
         for seed in range(self.nB):
-            if seed in processed_nodes: # Skip to the next seed that is not already in a (>2) orbit
-                continue
+            temp_processed_nodes = []
             
             seed_Xs = list(self.node_connectors[seed].values()) # All |B|-1 logical X operators connected to the seed node
-            print(len(seed_Xs))
             
             stack = [] # Stack for depth-first search
             stack.append(([], seed_Xs, set([seed]))) # Initialize
-            # print(stack.pop())
             while stack:
                 current_path, available_Xs, current_nodes = stack.pop() # Bakctracking step: processes each state in last-in-first-out order
-                # if 0b0110 in available_Xs: print("Yes")
-                                
-                path_tuple = tuple(sorted(current_path))
                 current_nodes_tuple = tuple(sorted(current_nodes))
                 
-                if (len(current_nodes) > 2 and len(current_path) > 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit # TODO
+                if (len(current_nodes) >= 2 and len(current_path) >= 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit                     
                     
-                    if not any(path_tuple == tuple(sorted(orbit.Xs)) for orbit in self.orbits.values()):
-         
-                        # Create a new Orbit object if it doesn't exist
-                        if current_nodes_tuple not in self.orbits.keys():
-                            self.orbits[current_nodes_tuple] = Orbit(Xs=list(current_path))
-                        else:
-                            self.orbits[current_nodes_tuple].Xs.extend(current_path)
-                            self.orbits[current_nodes_tuple].Xs = list(set(self.orbits[current_nodes_tuple].Xs))
-                        
-                        processed_nodes.update(current_nodes)  # Update the processed nodes with the current nodes
+                    # Create a new Orbit object if it doesn't exist
+                    if current_nodes_tuple not in self.orbits.keys():
+                        self.orbits[current_nodes_tuple] = Orbit(Xs=list(current_path))
+                        temp_processed_nodes.append(current_nodes_tuple)
+                    else:
+                        self.orbits[current_nodes_tuple].Xs.extend(current_path)
+                        self.orbits[current_nodes_tuple].Xs = list(set(self.orbits[current_nodes_tuple].Xs))
+                        # Update the processed nodes with the current nodes
                 
                 if len(current_path) == len(seed_Xs): # If the path is |B|-1 long, backtrack
                     continue
                                 
                 for x, X in enumerate(available_Xs): # Iterate over all the next paths in decision tree
-                    # if X == 0b0110: print("X = 0110")
-                    if X == 0b0100: print("X = 0100")
                     new_path = current_path + [X]
-                    if tuple(sorted(new_path)) in processed_prefixes:
-                        continue
-                    else:
-                        processed_prefixes.add(tuple(sorted(new_path)))
                     
                     new_available = available_Xs[:x] + available_Xs[x+1:] # available_Xs - {X}
                     
@@ -207,20 +192,28 @@ class LXMixer:
                         # Sets of nodes that form orbits cannot have edges going out of them
                         new_nodes = [node for u, v in self.family_of_valid_graphs[X] if u in current_nodes and v in current_nodes for node in (u, v)]
                         
-                        if set(current_nodes) == set(new_nodes):
-                            same_nodes += 1
-                        
                         if len(new_nodes) == 0 or seed not in new_nodes: # If the path doesn't lead anywhere, don't add it to the stack # THIS IS NEWWWW
                             continue
-                    
+                        
+                        if tuple(sorted(new_nodes)) in processed_nodes: # If the new nodes are already processed, skip it
+                            continue
+                        
                     stack.append((new_path, new_available, new_nodes)) # Add valid paths to the stack
             
-            # If the seed node is not part of any larger (>2) orbit, add all the |B|-1 trivial orbits connecting it
-            if seed not in processed_nodes:
-                for neighbor, X in self.node_connectors[seed].items():
-                    self.orbits[tuple(sorted([seed, neighbor]))] = Orbit(Xs=[X])
+            # Split unconnected graphs into suborbits
+            for nodes in temp_processed_nodes:
+                Xs = self.orbits[nodes].Xs
+                if len(Xs) < len(nodes)-1: # If the orbit is not complete
+                    new_orbits = split_into_suborbits(self.family_of_valid_graphs, Xs, nodes)
+                    self.orbits.pop(nodes) # Remove the orbit from the dictionary
+                    for new_orbit in new_orbits:
+                        self.orbits[tuple(sorted(new_orbit))] = Orbit(Xs=Xs)
+
+            processed_nodes = list(self.orbits.keys())
+                    
+        print(len(self.orbits.keys()), "orbits. ", len(set(self.orbits.keys())), "unique orbits found.")
         
-        # # Split unconnected graphs into suborbits
+        # Split unconnected graphs into suborbits
         # orbit_nodes_to_check = list(self.orbits.keys())
         # for nodes in orbit_nodes_to_check:
         #     Xs = self.orbits[nodes].Xs
@@ -230,7 +223,7 @@ class LXMixer:
         #         for new_orbit in new_orbits:
         #             self.orbits[tuple(sorted(new_orbit))] = Orbit(Xs=Xs)
         
-        print(len(self.orbits), same_nodes)
+        # print(len(self.orbits), same_nodes)
                     
     def compute_costs(self):
         """
@@ -240,10 +233,10 @@ class LXMixer:
             
             orbit.Z_cost = sum([ncnot(Z[1]) for Z in orbit.Zs]) if orbit.Zs else 0
             
-            if math.log2(len(nodes)) < len(orbit.Xs):
-                orbit.Xs, orbit.X_costs = zip(*sorted(zip(orbit.Xs, [ncnot(X) for X in orbit.Xs]), key=lambda x: x[1])[:int(math.log2(len(nodes)))])
-            else:
-                orbit.X_costs = [ncnot(X) for X in orbit.Xs]
+            # if math.log2(len(nodes)) < len(orbit.Xs):
+            orbit.Xs, orbit.X_costs = zip(*sorted(zip(orbit.Xs, [ncnot(X) for X in orbit.Xs]), key=lambda x: x[1])[:int(math.log2(len(nodes)))])
+            # else:
+            #     orbit.X_costs = [ncnot(X) for X in orbit.Xs]
             
             orbit.cost = sum(orbit.X_costs) + orbit.Z_cost
         
@@ -256,10 +249,11 @@ class LXMixer:
         # best_combinations = []
         
         if len(self.orbits.keys()) == 1:
-            self.best_Xs = [list(self.orbits.values())[0].Xs]
-            self.best_Zs = [list(self.orbits.values())[0].Zs]
+            self.best_Xs = [[list(self.orbits.values())[0].Xs]]
+            self.best_Zs = [[[0]]] #TODO
             self.best_cost = sum(list(self.orbits.values())[0].X_costs) # There is no projector needed
             # return best_Xs, best_Zs, best_cost
+            return
         
         N = range(2, len(self.orbits.keys()))
         for n in N:
@@ -324,10 +318,10 @@ if __name__ == '__main__':
     #     0b01110
     # ] # |B| = 8, nL = 5
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
-    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
+    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
 
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
-         0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
+    #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
     
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
@@ -362,7 +356,7 @@ if __name__ == '__main__':
     for nodes, orbit in lxmixer.orbits.items():
         print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
     
-    """
+    # """
     
     S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits)
     
@@ -407,4 +401,4 @@ if __name__ == '__main__':
     print(f"[{', '.join(f'[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in Z)}]' for sub_Zs in best_Zs for Z in sub_Zs)}]")    
     
     plot_mixer_graph(lxmixer)
-    """
+    # """
