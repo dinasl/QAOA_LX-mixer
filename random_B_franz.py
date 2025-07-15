@@ -84,7 +84,8 @@ class Worker:
         # LXMixer (uses integers)
         try:
             start_time = time.time()
-            
+            # if len(B_integers) == 7:
+            #     print("These are the B: ",B_integers)
             mixer = LXMixer(B_integers, nL)
             mixer.compute_family_of_valid_graphs()
             mixer.compute_all_orbits()
@@ -93,7 +94,9 @@ class Worker:
             stabilizer.compute_projector_stabilizers()
             mixer.compute_costs()
             
-            best_Xs, best_Zs, best_cost = mixer.find_best_mixer()
+            #best_Xs, best_Zs, best_cost = mixer.find_best_mixer()
+            mixer.find_best_mixer()
+            best_cost = mixer.best_cost
             
             end_time = time.time()
             
