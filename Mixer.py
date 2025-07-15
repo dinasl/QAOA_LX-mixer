@@ -214,7 +214,7 @@ class LXMixer:
             processed_nodes = list(self.orbits.keys())
             
             if not any(seed in nodes for nodes in processed_nodes):
-                for X, neighbour in self.node_connectors[seed].items():
+                for neighbour, X in self.node_connectors[seed].items():
                     self.orbits[tuple(sorted([seed, neighbour]))] = Orbit(Xs=[X])
                     
         print(len(self.orbits.keys()), "orbits. ", len(set(self.orbits.keys())), "unique orbits found.")
