@@ -113,7 +113,7 @@ class Stabilizer:
             final_minimal_generating_set_1_orbit = G0 #removed list from list(G0) since it is already a list of tuples
             
             self.orbit_dictionary[nodes].Zs = final_minimal_generating_set_1_orbit
-            print("Minimal generating set for orbit :", nodes, "\nis: ", final_minimal_generating_set_1_orbit)
+            #print("Minimal generating set for orbit :", nodes, "\nis: ", final_minimal_generating_set_1_orbit)
 
     def compute_projector_stabilizers(self, restricted = False):
         """
@@ -198,7 +198,7 @@ class Stabilizer:
                 # Updating so that we disregard the minimal generating sets and only keep the projectors 
                 orbit.Zs = projector #changed to projector from projectors
 
-                print("Projector for a given orbit: ", orbit.Zs)
+                #print("Projector for a given orbit: ", orbit.Zs)
 
 if __name__ == '__main__':
     # TODO does not run, need to make orbit_dictionary first
