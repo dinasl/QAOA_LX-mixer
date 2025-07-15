@@ -239,12 +239,19 @@ class LXMixer:
             
             orbit.Z_cost = sum([ncnot(Z[1]) for Z in orbit.Zs]) if orbit.Zs else 0
             
-            # if math.log2(len(nodes)) < len(orbit.Xs):
+        #     # if math.log2(len(nodes)) < len(orbit.Xs):
             orbit.Xs, orbit.X_costs = zip(*sorted(zip(orbit.Xs, [ncnot(X) for X in orbit.Xs]), key=lambda x: x[1])[:int(math.log2(len(nodes)))])
-            # else:
-            #     orbit.X_costs = [ncnot(X) for X in orbit.Xs]
+        #     # else:
+        #     #     orbit.X_costs = [ncnot(X) for X in orbit.Xs]
             
             orbit.cost = sum(orbit.X_costs) + orbit.Z_cost
+            
+        # for nodes in self.orbits.keys():
+        #     self.orbits[nodes].Z_cost = sum([ncnot(Z[1]) for Z in self.orbits[nodes].Zs]) if self.orbits[nodes].Zs else 0
+
+        #     self.orbits[nodes].Xs, self.orbits[nodes].X_costs = zip(*sorted(zip(self.orbits[nodes].Xs, [ncnot(X) for X in self.orbits[nodes].Xs]), key=lambda x: x[1])[:int(math.log2(len(nodes)))])
+            
+        #     self.orbits[nodes].cost = sum(self.orbits[nodes].X_costs) + self.orbits[nodes].Z_cost
         
     def find_best_mixer(self):
         """ 
@@ -264,8 +271,8 @@ class LXMixer:
         
         N = range(2, len(self.orbits.keys())+1)
         for n in N:
-            for combination in tqdm(combinations(self.orbits.keys(), n), desc=f"Checking combinations of size {n}"):
-                time.sleep(0.05)
+            for combination in combinations(self.orbits.keys(), n):
+                # time.sleep(0.05)
                 if len(set([node for nodes in combination for node in nodes])) != self.nB:
                     continue
                 if not is_connected(combination):
@@ -324,7 +331,8 @@ if __name__ == '__main__':
     # ] # |B| = 8, nL = 5
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
-    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
+    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
+    B = [6, 3, 1, 5, 0, 4, 2]
 
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
     #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
@@ -391,6 +399,7 @@ if __name__ == '__main__':
     for nodes, orbit in lxmixer.orbits.items():
         print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}], Zs = [{', '.join(f'{"+" if Z[0] == 1 else "-"}{Z[1]:0{lxmixer.nL}b}' for Z in orbit.Zs if len(Z) == 2)}]")
         print(f"cost = {orbit.cost}")
+        print(f"X costs = [{', '.join(str(X_cost) for X_cost in orbit.X_costs)}], Z cost = {orbit.Z_cost}")
     
     print("\nFinding best mixer...")
     start_time = time.time()

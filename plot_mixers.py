@@ -18,7 +18,18 @@ def draw_nodes(ax, x, nodes, nL):
         ax.set_xlim(-1, 1)
         ax.axis('off')
         
-# def draw_orbit(ax, nodes, )
+def draw_orbit(ax, nodes, Xs, nB, family_of_valid_graphs, color, r, lw):
+
+    for X in Xs:
+        for node in nodes:
+            for neighbor in nodes:
+                if node < neighbor and (node, neighbor) in family_of_valid_graphs[X]:
+                    y0 = nB - node
+                    y1 = nB - neighbor
+                    start = (0, y0)
+                    end = (0, y1)
+                    draw_arc(ax, start, end, r=r, color=color, lw=lw)
+                    
 
 def plot_mixer_graph(LX):
     x = -0.1
@@ -33,14 +44,15 @@ def plot_mixer_graph(LX):
         orbit_labels = []
         for color_n, nodes in enumerate(combination):
             orbit_labels.append(fr"$\langle${", ".join(f"${pauli_int_to_str(X, LX.nL)}$"for X in LX.orbits[nodes].Xs)}$\rangle$")
-            for node in nodes:
-                y0 = LX.nB - node
-                for neighbor in nodes:
-                    if neighbor > node:
-                        y1 = LX.nB - neighbor
-                        start = (x, y0)
-                        end = (x, y1)
-                        draw_arc(ax[plot_n], start, end, r=0.3, color= colors[color_n])
+            # for node in nodes:
+            #     y0 = LX.nB - node
+            #     for neighbor in nodes:
+            #         if neighbor > node:
+            #             y1 = LX.nB - neighbor
+            #             start = (x, y0)
+            #             end = (x, y1)
+            #             draw_arc(ax[plot_n], start, end, r=0.3, color= colors[color_n])
+            draw_orbit(ax[plot_n], nodes, LX.orbits[nodes].Xs, LX.nB, LX.family_of_valid_graphs, colors[color_n], r=0.3, lw=1)
                         
         handles = [plt.Line2D([0], [0],
                       linestyle='-',      # solid line
