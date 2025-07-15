@@ -4,6 +4,8 @@ from typing import Dict, List, Tuple, Set
 from dataclasses import dataclass, field
 from itertools import combinations
 import math
+from tqdm import tqdm
+import sys
 
 from Stabilizer import *
 from utils import ncnot, is_connected, split_into_suborbits
@@ -167,7 +169,7 @@ class LXMixer:
                 current_path, available_Xs, current_nodes = stack.pop() # Bakctracking step: processes each state in last-in-first-out order
                 current_nodes_tuple = tuple(sorted(current_nodes))
                 
-                if (len(current_nodes) >= 2 and len(current_path) >= 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit                     
+                if (len(current_nodes) >= 2 and len(current_path) > 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit                     
                     
                     # Create a new Orbit object if it doesn't exist
                     if current_nodes_tuple not in self.orbits.keys():
@@ -210,6 +212,10 @@ class LXMixer:
                         self.orbits[tuple(sorted(new_orbit))] = Orbit(Xs=Xs)
 
             processed_nodes = list(self.orbits.keys())
+            
+            if not any(seed in nodes for nodes in processed_nodes):
+                for X, neighbour in self.node_connectors[seed].items():
+                    if seed < neighbour: self.orbits[(seed, neighbour)] = Orbit(Xs=[X])
                     
         print(len(self.orbits.keys()), "orbits. ", len(set(self.orbits.keys())), "unique orbits found.")
         
@@ -250,25 +256,22 @@ class LXMixer:
         
         if len(self.orbits.keys()) == 1:
             self.best_Xs = [[list(self.orbits.values())[0].Xs]]
-            self.best_Zs = [[[0]]] #TODO
+            self.best_Zs = [[[(1,0)]]] #TODO
             self.best_cost = sum(list(self.orbits.values())[0].X_costs) # There is no projector needed
+            self.best_combinations = [[tuple(self.B)]]
             # return best_Xs, best_Zs, best_cost
             return
         
-        N = range(2, len(self.orbits.keys()))
+        N = range(2, len(self.orbits.keys())+1)
         for n in N:
-            for combination in combinations(self.orbits.keys(), n):
-                # print(f"\nChecking combination: {combination}")
+            for combination in tqdm(combinations(self.orbits.keys(), n), desc=f"Checking combinations of size {n}"):
+                time.sleep(0.05)
                 if len(set([node for nodes in combination for node in nodes])) != self.nB:
-                    # print(f"Combination does not cover all nodes, skipping.")
                     continue
                 if not is_connected(combination):
-                    # print(f"Combination is not connected, skipping.")
                     continue
-                # print(f"Combination is connected, computing cost...")
                 cost = 0
                 for orbit_nodes in combination:
-                    # cost += sum(self.orbits[orbit_nodes].X_costs[:int(math.log2(len(orbit_nodes)))]) + self.orbits[orbit_nodes].Z_cost
                     cost += self.orbits[orbit_nodes].cost
                     if cost > self.best_cost:
                         break
@@ -283,6 +286,8 @@ class LXMixer:
         
         self.best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in self.best_combinations]
         self.best_Zs = [[self.orbits[orbit_nodes].Zs for orbit_nodes in combination] for combination in self.best_combinations]
+        
+        return
         
 # Standalone code
 
@@ -318,7 +323,8 @@ if __name__ == '__main__':
     #     0b01110
     # ] # |B| = 8, nL = 5
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
-    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
+    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
+    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
 
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
     #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
@@ -398,7 +404,7 @@ if __name__ == '__main__':
     print("\nBest mixer:")
     print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f"{x:0{lxmixer.nL}b}" for x in sub_Xs)}]" for sub_Xs in Xs)}]' for Xs in best_Xs)}]")
     print("\nBest projectors:")
-    print(f"[{', '.join(f'[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in Z)}]' for sub_Zs in best_Zs for Z in sub_Zs)}]")    
-    
-    plot_mixer_graph(lxmixer)
+    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
+   
+    # plot_mixer_graph(lxmixer)
     # """
