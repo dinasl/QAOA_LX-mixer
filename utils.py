@@ -91,9 +91,6 @@ def split_into_suborbits(family_of_valid_graphs, operators, nodes = None):
     """
     suborbit_size = len(operators) + 1
     
-    print("suborbit size: ", suborbit_size)
-    print("Number of nodes: ", len(nodes))
-    
     # Finds how many X operators are needed to cover the suborbit
     least_number_of_operators = int(math.log2(suborbit_size))
 
