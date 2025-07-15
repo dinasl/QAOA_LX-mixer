@@ -39,9 +39,12 @@ class Worker:
         
         # Finding the cnot cost for both Franz mixer (strings) and LXMixer (integers)
         results = {}
+        timing_results = {}
         
         # Franz mixer (uses strings) - following the exact pattern from random_B_franz_string.py
         try:
+            start_time = time.time()
+            
             # Replicate the exact pattern from random_B_franz_string.py
             cnots = None
             cnots_reduced = None
@@ -64,18 +67,24 @@ class Worker:
                     else:
                         cnots = mixer_franz.solution_cost
             
+            end_time = time.time()
+            
             # Use the "optimal" case (not chain, not reduced)
             results['franz'] = cnots
-            print(f"Franz mixer - optimal cost: {cnots}")
+            timing_results['franz'] = end_time - start_time
+            print(f"Franz mixer - optimal cost: {cnots}, time: {timing_results['franz']:.4f}s")
             
         except Exception as e:
             print(f"Error with Franz mixer: {e}")
             import traceback
             traceback.print_exc()
             results['franz'] = float('inf')
+            timing_results['franz'] = float('inf')
         
         # LXMixer (uses integers)
         try:
+            start_time = time.time()
+            
             mixer = LXMixer(B_integers, nL)
             mixer.compute_family_of_valid_graphs()
             mixer.compute_all_orbits()
@@ -85,19 +94,28 @@ class Worker:
             mixer.compute_costs()
             
             best_Xs, best_Zs, best_cost = mixer.find_best_mixer()
+            
+            end_time = time.time()
+            
             results['lxmixer'] = best_cost
+            timing_results['lxmixer'] = end_time - start_time
+            print(f"LXMixer - optimal cost: {best_cost}, time: {timing_results['lxmixer']:.4f}s")
+            
         except Exception as e:
             print(f"Error with LXMixer: {e}")
             results['lxmixer'] = float('inf')
+            timing_results['lxmixer'] = float('inf')
 
         print(f"Franz: {results['franz']}, LXMixer: {results['lxmixer']}")
-        return results['franz'], results['lxmixer']
+        return results['franz'], results['lxmixer'], timing_results['franz'], timing_results['lxmixer']
 
 
 def saveResult(res):
-    global cnots_franz, cnots_lxmixer
+    global cnots_franz, cnots_lxmixer, times_franz, times_lxmixer
     cnots_franz.append(res[0])
     cnots_lxmixer.append(res[1])
+    times_franz.append(res[2])
+    times_lxmixer.append(res[3])
 
 
 def plot(m_list, mean_cnots, var_cnots, min_cnots, max_cnots, color, col, style, text):
@@ -157,11 +175,24 @@ def main(n, num_samples=100):
     mean_cnots_lxmixer = np.zeros(len(m_list))
     var_cnots_lxmixer = np.zeros(len(m_list))
 
+    # Arrays for timing data
+    min_times_franz = np.zeros(len(m_list))
+    max_times_franz = np.zeros(len(m_list))
+    mean_times_franz = np.zeros(len(m_list))
+    var_times_franz = np.zeros(len(m_list))
+
+    min_times_lxmixer = np.zeros(len(m_list))
+    max_times_lxmixer = np.zeros(len(m_list))
+    mean_times_lxmixer = np.zeros(len(m_list))
+    var_times_lxmixer = np.zeros(len(m_list))
+
     for i, m in enumerate(m_list):
         print(f"\nProcessing m={m} (|B|={m}) - {i+1}/{len(m_list)}")
-        global cnots_franz, cnots_lxmixer
+        global cnots_franz, cnots_lxmixer, times_franz, times_lxmixer
         cnots_franz = []
         cnots_lxmixer = []
+        times_franz = []
+        times_lxmixer = []
         
         pool = Pool()
         results = []
@@ -199,6 +230,16 @@ def main(n, num_samples=100):
             max_cnots_lxmixer[i] = np.nan
             mean_cnots_lxmixer[i] = np.nan
             var_cnots_lxmixer[i] = np.nan
+            
+            # Timing data
+            min_times_franz[i] = np.nan
+            max_times_franz[i] = np.nan
+            mean_times_franz[i] = np.nan
+            var_times_franz[i] = np.nan
+            min_times_lxmixer[i] = np.nan
+            max_times_lxmixer[i] = np.nan
+            mean_times_lxmixer[i] = np.nan
+            var_times_lxmixer[i] = np.nan
             continue
 
         # Calculate statistics for Franz mixer
@@ -213,6 +254,18 @@ def main(n, num_samples=100):
         mean_cnots_lxmixer[i] = np.mean(cnots_lxmixer)
         var_cnots_lxmixer[i] = np.var(cnots_lxmixer)
 
+        # Calculate timing statistics for Franz mixer
+        min_times_franz[i] = np.min(times_franz)
+        max_times_franz[i] = np.max(times_franz)
+        mean_times_franz[i] = np.mean(times_franz)
+        var_times_franz[i] = np.var(times_franz)
+
+        # Calculate timing statistics for LXMixer
+        min_times_lxmixer[i] = np.min(times_lxmixer)
+        max_times_lxmixer[i] = np.max(times_lxmixer)
+        mean_times_lxmixer[i] = np.mean(times_lxmixer)
+        var_times_lxmixer[i] = np.var(times_lxmixer)
+
         print(int(100 * (i + 1) / len(m_list)), "%")
 
     # Print final data summary
@@ -220,11 +273,13 @@ def main(n, num_samples=100):
     print(f"m_list: {m_list}")
     print(f"Franz means: {mean_cnots_franz}")
     print(f"LXMixer means: {mean_cnots_lxmixer}")
+    print(f"Franz time means: {mean_times_franz}")
+    print(f"LXMixer time means: {mean_times_lxmixer}")
     print(f"Franz has {np.sum(~np.isnan(mean_cnots_franz))} valid values")
     print(f"LXMixer has {np.sum(~np.isnan(mean_cnots_lxmixer))} valid values")
 
-    # Create comparison plot
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Create comparison plot for CNOT costs and timing
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
 
     # Filter out NaN values for plotting
     valid_indices = ~(np.isnan(mean_cnots_franz) | np.isnan(mean_cnots_lxmixer))
@@ -234,6 +289,7 @@ def main(n, num_samples=100):
         print("No valid data points to plot!")
         return
     
+    # CNOT cost data
     mean_franz_valid = mean_cnots_franz[valid_indices]
     var_franz_valid = var_cnots_franz[valid_indices]
     min_franz_valid = min_cnots_franz[valid_indices]
@@ -244,9 +300,20 @@ def main(n, num_samples=100):
     min_lxmixer_valid = min_cnots_lxmixer[valid_indices]
     max_lxmixer_valid = max_cnots_lxmixer[valid_indices]
 
-    # Plot Franz mixer results
-    plt.plot(m_list_valid, mean_franz_valid, "o-b", label="Franz Mixer (mean)")
-    plt.fill_between(
+    # Timing data
+    mean_times_franz_valid = mean_times_franz[valid_indices]
+    var_times_franz_valid = var_times_franz[valid_indices]
+    min_times_franz_valid = min_times_franz[valid_indices]
+    max_times_franz_valid = max_times_franz[valid_indices]
+    
+    mean_times_lxmixer_valid = mean_times_lxmixer[valid_indices]
+    var_times_lxmixer_valid = var_times_lxmixer[valid_indices]
+    min_times_lxmixer_valid = min_times_lxmixer[valid_indices]
+    max_times_lxmixer_valid = max_times_lxmixer[valid_indices]
+
+    # Plot CNOT costs (left subplot)
+    ax1.plot(m_list_valid, mean_franz_valid, "o-b", label="Franz Mixer (mean)")
+    ax1.fill_between(
         m_list_valid,
         mean_franz_valid - np.sqrt(var_franz_valid),
         mean_franz_valid + np.sqrt(var_franz_valid),
@@ -254,12 +321,11 @@ def main(n, num_samples=100):
         alpha=0.35,
         label="Franz Mixer (1σ)"
     )
-    plt.plot(m_list_valid, min_franz_valid, ":k", alpha=0.7)
-    plt.plot(m_list_valid, max_franz_valid, ":k", alpha=0.7)
+    ax1.plot(m_list_valid, min_franz_valid, ":b", alpha=0.7)
+    ax1.plot(m_list_valid, max_franz_valid, ":b", alpha=0.7)
 
-    # Plot LXMixer results
-    plt.plot(m_list_valid, mean_lxmixer_valid, "x-r", label="LXMixer (mean)")
-    plt.fill_between(
+    ax1.plot(m_list_valid, mean_lxmixer_valid, "x-r", label="LXMixer (mean)")
+    ax1.fill_between(
         m_list_valid,
         mean_lxmixer_valid - np.sqrt(var_lxmixer_valid),
         mean_lxmixer_valid + np.sqrt(var_lxmixer_valid),
@@ -267,16 +333,87 @@ def main(n, num_samples=100):
         alpha=0.35,
         label="LXMixer (1σ)"
     )
-    plt.plot(m_list_valid, min_lxmixer_valid, ":k", alpha=0.7)
-    plt.plot(m_list_valid, max_lxmixer_valid, ":k", alpha=0.7)
+    ax1.plot(m_list_valid, min_lxmixer_valid, ":r", alpha=0.7)
+    ax1.plot(m_list_valid, max_lxmixer_valid, ":r", alpha=0.7)
 
-    plt.legend()
-    plt.xlim(min(m_list_valid), max(m_list_valid))
-    plt.xlabel(r"$|B|$")
-    plt.ylabel("#CNOTS")
-    plt.title(f"Comparison of Franz Mixer vs LXMixer (n={n})")
-    plt.grid()
+    ax1.legend()
+    ax1.set_xlim(min(m_list_valid), max(m_list_valid))
+    ax1.set_xlabel(r"$|B|$")
+    ax1.set_ylabel("#CNOTS")
+    ax1.set_title(f"CNOT Cost Comparison (n={n})")
+    ax1.grid()
+
+    # Plot execution times (right subplot)
+    ax2.plot(m_list_valid, mean_times_franz_valid, "o-b", label="Franz Mixer (mean)")
+    ax2.fill_between(
+        m_list_valid,
+        mean_times_franz_valid - np.sqrt(var_times_franz_valid),
+        mean_times_franz_valid + np.sqrt(var_times_franz_valid),
+        color="blue",
+        alpha=0.35,
+        label="Franz Mixer (1σ)"
+    )
+    ax2.plot(m_list_valid, min_times_franz_valid, ":b", alpha=0.7)
+    ax2.plot(m_list_valid, max_times_franz_valid, ":b", alpha=0.7)
+
+    ax2.plot(m_list_valid, mean_times_lxmixer_valid, "x-r", label="LXMixer (mean)")
+    ax2.fill_between(
+        m_list_valid,
+        mean_times_lxmixer_valid - np.sqrt(var_times_lxmixer_valid),
+        mean_times_lxmixer_valid + np.sqrt(var_times_lxmixer_valid),
+        color="red",
+        alpha=0.35,
+        label="LXMixer (1σ)"
+    )
+    ax2.plot(m_list_valid, min_times_lxmixer_valid, ":r", alpha=0.7)
+    ax2.plot(m_list_valid, max_times_lxmixer_valid, ":r", alpha=0.7)
+
+    ax2.legend()
+    ax2.set_xlim(min(m_list_valid), max(m_list_valid))
+    ax2.set_xlabel(r"$|B|$")
+    ax2.set_ylabel("Execution Time (s)")
+    ax2.set_title(f"Execution Time Comparison (n={n})")
+    ax2.grid()
+
+    plt.tight_layout()
     plt.savefig(f"comparison_n{n}.png")
+    plt.clf()
+
+    # Create separate timing plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    ax.plot(m_list_valid, mean_times_franz_valid, "o-b", label="Franz Mixer (mean)")
+    ax.fill_between(
+        m_list_valid,
+        mean_times_franz_valid - np.sqrt(var_times_franz_valid),
+        mean_times_franz_valid + np.sqrt(var_times_franz_valid),
+        color="blue",
+        alpha=0.35,
+        label="Franz Mixer (1σ)"
+    )
+    ax.plot(m_list_valid, min_times_franz_valid, ":b", alpha=0.7)
+    ax.plot(m_list_valid, max_times_franz_valid, ":b", alpha=0.7)
+
+    ax.plot(m_list_valid, mean_times_lxmixer_valid, "x-r", label="LXMixer (mean)")
+    ax.fill_between(
+        m_list_valid,
+        mean_times_lxmixer_valid - np.sqrt(var_times_lxmixer_valid),
+        mean_times_lxmixer_valid + np.sqrt(var_times_lxmixer_valid),
+        color="red",
+        alpha=0.35,
+        label="LXMixer (1σ)"
+    )
+    ax.plot(m_list_valid, min_times_lxmixer_valid, ":r", alpha=0.7)
+    ax.plot(m_list_valid, max_times_lxmixer_valid, ":r", alpha=0.7)
+
+    ax.legend()
+    ax.set_xlim(min(m_list_valid), max(m_list_valid))
+    ax.set_xlabel(r"$|B|$")
+    ax.set_ylabel("Execution Time (s)")
+    ax.set_title(f"Execution Time Comparison: Franz Mixer vs LXMixer (n={n})")
+    ax.grid()
+    
+    plt.savefig(f"timing_comparison_n{n}.png")
     plt.clf()
 
     
