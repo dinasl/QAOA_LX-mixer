@@ -172,8 +172,8 @@ class Stabilizer:
                     signs = np.array(signs)
                     z_strings = np.array(z_strings)
                 except ValueError:
-                    print("No minimal generating set found for orbit:", orbit)
-                    print("No projectors are needed.")
+                    #print("No minimal generating set found for orbit:", orbit)
+                    #print("No projectors are needed.")
                     continue
                 # Get all binary combinations (2^k × k)
                 all_choices = np.array(list(itertools.product([0, 1], repeat=k)))  # shape (2^k, k)

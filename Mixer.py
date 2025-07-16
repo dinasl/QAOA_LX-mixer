@@ -218,7 +218,7 @@ class LXMixer:
                 for neighbour, X in self.node_connectors[seed].items():
                     self.orbits[tuple(sorted([seed, neighbour]))] = Orbit(Xs=[X])
                     
-        print(len(self.orbits.keys()), "orbits. ", len(set(self.orbits.keys())), "unique orbits found.")
+        #print(len(self.orbits.keys()), "orbits. ", len(set(self.orbits.keys())), "unique orbits found.")
         
         # Split unconnected graphs into suborbits
         # orbit_nodes_to_check = list(self.orbits.keys())

@@ -134,4 +134,4 @@ if __name__ == '__main__':
     nodes_2 = (2, 6, 7, 8)
     
     suborbits = split_into_suborbits(family_of_valid_graphs=family_of_valid_graphs_1, operators=operators_2, nodes=nodes_2)
-    print("suborbits: ", suborbits)
+    #print("suborbits: ", suborbits)
