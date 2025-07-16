@@ -331,15 +331,15 @@ if __name__ == '__main__':
     #     0b00110,
     #     0b01110
     # ] # |B| = 8, nL = 5
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
     # B = [6, 3, 1, 5, 0, 4, 2] # cost = 0
     # B = [6, 2, 1, 0, 5]
     # B = [6,5]
 
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
-         0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
+    #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
     
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
@@ -375,7 +375,7 @@ if __name__ == '__main__':
     for nodes, orbit in lxmixer.orbits.items():
         print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
     
-    """
+    # """
     
     S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits)
     
@@ -420,10 +420,10 @@ if __name__ == '__main__':
     print("\nBest projectors:")
     print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
    
-    """
+    # """
    
-    # draw_best_graphs(lxmixer)
-    fig, ax = plt.subplots()
-    draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
-    plt.show()
+    draw_best_graphs(lxmixer)
+    # fig, ax = plt.subplots()
+    # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
+    # plt.show()
     # """
