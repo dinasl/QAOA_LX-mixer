@@ -1,5 +1,6 @@
 # import networkx as nx
 # import numpy as np
+import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Set
 from dataclasses import dataclass, field
 from itertools import combinations
@@ -9,7 +10,7 @@ import sys
 
 from Stabilizer import *
 from utils import ncnot, is_connected, split_into_suborbits
-from plot_mixers import plot_mixer_graph
+from plot_mixers import draw_best_graphs, draw_mixer_graph
 
 # TODO: Implement method for directed graphs (digraph=True). Only for visual representation.
 # TODO: Implement method for reduced graphs (reduced=True)
@@ -265,7 +266,7 @@ class LXMixer:
             self.best_Xs = [[list(self.orbits.values())[0].Xs]]
             self.best_Zs = [[[(1,0)]]] #TODO
             self.best_cost = sum(list(self.orbits.values())[0].X_costs) # There is no projector needed
-            self.best_combinations = [[tuple(self.B)]]
+            self.best_combinations = [tuple(self.orbits.keys())]
             # return best_Xs, best_Zs, best_cost
             return
         
@@ -274,7 +275,7 @@ class LXMixer:
             for combination in combinations(self.orbits.keys(), n):
                 # time.sleep(0.05)
                 if len(set([node for nodes in combination for node in nodes])) != self.nB:
-                    print(f"Combination {combination} does not cover all nodes in B, skipping.")
+                    # print(f"Combination {combination} does not cover all nodes in B, skipping.")
                     continue
                 if not is_connected(combination):
                     continue
@@ -294,7 +295,7 @@ class LXMixer:
         
         self.best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in self.best_combinations]
         self.best_Zs = [[self.orbits[orbit_nodes].Zs for orbit_nodes in combination] for combination in self.best_combinations]
-        
+        print(self.best_combinations)
         return
         
 # Standalone code
@@ -330,11 +331,11 @@ if __name__ == '__main__':
     #     0b00110,
     #     0b01110
     # ] # |B| = 8, nL = 5
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
     # B = [6, 3, 1, 5, 0, 4, 2] # cost = 0
-    B = [6, 2, 1, 0, 5]
+    # B = [6, 2, 1, 0, 5]
     # B = [6,5]
 
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
@@ -342,8 +343,8 @@ if __name__ == '__main__':
     
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
-    lxmixer = LXMixer(B, 3)
-    # lxmixer = LXMixer(B, 4)
+    # lxmixer = LXMixer(B, 3)
+    lxmixer = LXMixer(B, 4)
     # lxmixer = LXMixer(B, 5)
 
     print("\nComputing family of valid graphs...")
@@ -419,5 +420,10 @@ if __name__ == '__main__':
     print("\nBest projectors:")
     print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
    
-    # plot_mixer_graph(lxmixer)
+    # """
+   
+    draw_best_graphs(lxmixer)
+    # fig, ax = plt.subplots()
+    # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
+    # plt.show()
     # """
