@@ -1,5 +1,8 @@
 import math
 import networkx as nx
+from itertools import combinations
+from functools import reduce
+import operator
 
 is_power_of_two = lambda x: (x > 0) and (x & (x - 1)) == 0
 
@@ -135,3 +138,82 @@ if __name__ == '__main__':
     
     suborbits = split_into_suborbits(family_of_valid_graphs=family_of_valid_graphs_1, operators=operators_2, nodes=nodes_2)
     #print("suborbits: ", suborbits)
+
+def find_best_cost(Xs, Zs):#orbit):
+    """
+    takes in a list of Xs that are log2(nodes) and that generates an orbit. Also takes in a list of Zs that corresponds to the orbit.
+    """
+    # Xs = orbit.Xs 
+    # Zs = orbit.Zs #remember to change from (1, string) to only string...
+    all_x_operators = []
+    n = len(Xs)
+    
+    # Generate all combinations of Xs and their corresponding hats
+    for r in range(1, n + 1):  # Start from 1 to include single elements
+        for combo in combinations(Xs, r):
+            hat = reduce(operator.xor, combo)
+            all_x_operators.append([combo, hat])
+    
+    all_costs = []
+
+    for used_Xs, X_combos in all_x_operators:
+        total_cost = 0
+        for Z in Zs:
+            cost = ncnot(X_combos ^ Z)
+            total_cost += cost
+        
+        all_costs.append((used_Xs, total_cost))
+    
+    # TODO Check this part!!! might be able to do it more efficiently
+    # The Xs we demand will be in the solution somehow (to make sure its an orbit)
+    required_set = set(Xs)
+    best = None
+    min_cost = float('inf')
+
+    for group in combinations(all_costs, n):
+        covered = set()
+        total_cost = 0
+
+        for combo, cost in group:
+            covered.update(combo)
+            total_cost += cost
+
+        if covered >= required_set and total_cost < min_cost:
+            best = group
+            min_cost = total_cost
+
+    return list(best), min_cost
+    """
+    # The Xs we demand will be in the solution somehow (to make sure its an orbit)
+    required_set = set(Xs)
+
+    # Checking what has been covered
+    covered_set = set()
+    all_costs = sorted(all_costs, key=lambda x: x[1])
+
+    for X_combo, cost in all_costs:
+        pass
+        
+    """
+
+    """
+    number_of_X_needed = math.log2(len(Xs) + 1)
+    best_Xs_and_cost = []
+
+    for X in Xs:
+        total_cost_for_X = float('inf')
+        for Z in Zs:
+            cost = ncnot(X^Z)
+            total_cost_for_X += cost
+        
+        if len(best_Xs_and_cost) < number_of_X_needed:
+            best_Xs_and_cost.append((X, total_cost_for_X))
+        
+        else:
+            pass
+    """
+            
+    
+print("this is the best combo of Xs:", find_best_cost([0b0010, 0b0110, 0b1000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])[0],"\nAnd this is the best cost:", find_best_cost([0b0010, 0b0110, 0b1000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])[1])
+
+            
