@@ -183,6 +183,16 @@ def main(n, num_samples=100):
 
     # m = |B|
     m_list = list(range(2, 2**n + 1))
+    
+    # RESUME: Skip completed m values - change this number to resume from specific m
+    start_from_m = 11  # CHANGE THIS: Set to the m value you want to resume from
+    try:
+        start_index = m_list.index(start_from_m)
+        print(f"RESUMING from m={start_from_m} (skipping {start_index} completed values)")
+        m_list = m_list[start_index:]
+    except ValueError:
+        print(f"Error: m={start_from_m} not found in m_list")
+        return
 
     # Arrays for Franz mixer
     min_cnots_franz = np.zeros(len(m_list))
@@ -585,5 +595,5 @@ def main(n, num_samples=100):
 if __name__ == "__main__":
     pass
     # n=dimension of Hilbert space
-    for n in [3]:
+    for n in [4]:
         main(n)
