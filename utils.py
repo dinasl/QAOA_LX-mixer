@@ -164,6 +164,7 @@ def find_best_cost(Xs, Zs):#orbit):
         
         all_costs[used_Xs] = total_cost
     
+    """
     # TODO Check this part!!! might be able to do it more efficiently
     # The Xs we demand will be in the solution somehow (to make sure its an orbit)
     required_set = set(Xs)
@@ -181,7 +182,7 @@ def find_best_cost(Xs, Zs):#orbit):
         if covered_1 >= required_set and total_cost < min_cost:
             best = group
             min_cost = total_cost
-    
+    """
 
     # New version, hopefully more efficient
     best_Xs = []
@@ -219,10 +220,9 @@ def find_best_cost(Xs, Zs):#orbit):
                 maybe_later.append([key, lowest_cost])
 
 
-    return best_Xs, best_cost, list(best), min_cost
+    return best_Xs, best_cost#, list(best), min_cost
 
-results = find_best_cost([0b0010, 0b0110, 0b1000, 0b1001, 0b1111, 0b0000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])
-    
-print("Best combo of Xs (heuristic):", results[0],"\nBest cost (heuristic):", results[1],"\nBest combo of Xs (exact):", results[2], "\nBest cost (exact):", results[3])
+if __name__ == '__main__':
+    results = find_best_cost([0b0010, 0b0110, 0b1000, 0b1001, 0b1111, 0b0000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])
 
-            
+    print("Best combo of Xs (heuristic):", results[0],"\nBest cost (heuristic):", results[1], "\nBest combo of Xs (exact):", results[2], "\nBest cost (exact):", results[3])
