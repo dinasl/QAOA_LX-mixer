@@ -10,7 +10,7 @@ import sys
 
 from Stabilizer import *
 from utils import ncnot, is_connected, split_into_suborbits, is_power_of_two, find_best_cost
-from plot_mixers import draw_best_graphs, draw_mixer_graph
+from plot_mixers import draw_best_graphs, draw_mixer_graph, draw_family_of_valid_graphs, X0
 
 # TODO: Implement method for directed graphs (digraph=True). Only for visual representation.
 # TODO: Implement method for reduced graphs (reduced=True)
@@ -155,9 +155,7 @@ class LXMixer:
         processed_nodes = set()
         
         for seed in range(self.nB):
-            print(f"Processing seed {seed}")
             if seed in processed_nodes:
-                print(f"Seed {seed} already processed, skipping.")
                 continue
             
             seed_Xs = list(self.node_connectors[seed].values())
@@ -167,17 +165,17 @@ class LXMixer:
             while stack:
                 current_path, available_Xs, current_nodes = stack.pop()
                 current_nodes_tuple = tuple(sorted(current_nodes))
-                if len(current_nodes) == 2:
+                if not self.orbits.keys():
                     self.orbits[current_nodes_tuple] = Orbit(Xs=current_path)
-                elif self.orbits.keys():
-                    print(self.orbits.keys())
-                    for nodes in list(self.orbits.keys()):
-                        if set(nodes).issubset(set(current_nodes)):
-                            self.orbits[tuple(sorted(current_nodes))] = Orbit(Xs=current_path)
-                            self.orbits.pop(nodes)
-                            processed_nodes.update(current_nodes)
+                    processed_nodes.update(current_nodes)
+                else:
                     if not any(set(current_nodes).issubset(set(nodes)) for nodes in list(self.orbits.keys())):
                         self.orbits[current_nodes_tuple] = Orbit(Xs=current_path)
+
+                        for nodes in list(self.orbits.keys()):
+                            if set(nodes) < set(current_nodes):
+                                self.orbits.pop(nodes)
+                                
                         processed_nodes.update(current_nodes)
             
                 if len(current_path) == len(seed_Xs):
@@ -190,7 +188,8 @@ class LXMixer:
                     for node in current_nodes:
                         new_nodes.update(n for edge in self.family_of_valid_graphs[X] for n in edge if node in edge)
                     
-                    if len(new_nodes) == len(current_nodes) or not is_power_of_two(len(new_nodes)):
+                    # if len(new_nodes) == len(current_nodes) or not is_power_of_two(len(new_nodes)):
+                    if int(math.log2(len(new_nodes))) != len(new_path) or not is_power_of_two(len(new_nodes)):
                         continue
                         
                     stack.append((new_path, new_available, tuple(sorted(new_nodes))))
@@ -221,7 +220,7 @@ class LXMixer:
             for combination in combinations(self.orbits.keys(), n):
                 # time.sleep(0.05)
                 if len(set([node for nodes in combination for node in nodes])) != self.nB:
-                    print(f"Combination {combination} does not cover all nodes in B, skipping.")
+                    # print(f"Combination {combination} does not cover all nodes in B, skipping.")
                     continue
                 if not is_connected(combination):
                     continue
@@ -249,23 +248,23 @@ if __name__ == '__main__':
     
     import time
     
-    # B = [
-    #     0b00001,
-    #     0b00010,
-    #     0b00100,
-    #     0b01000,
-    #     0b10000,
-    #     0b00011,
-    #     0b00101,
-    #     0b00110,
-    #     0b01001,
-    #     0b01010,
-    #     0b01100,
-    #     0b10001,
-    #     0b10010,
-    #     0b10100,
-    #     0b11000
-    # ] # |B| = 15, nL = 5
+    B = [
+        0b00001,
+        0b00010,
+        0b00100,
+        0b01000,
+        0b10000,
+        0b00011,
+        0b00101,
+        0b00110,
+        0b01001,
+        0b01010,
+        0b01100,
+        0b10001,
+        0b10010,
+        0b10100,
+        0b11000
+    ] # |B| = 15, nL = 5
     # B = [
     #     0b10011,
     #     0b01100,
@@ -277,7 +276,7 @@ if __name__ == '__main__':
     #     0b01110
     # ] # |B| = 8, nL = 5
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
-    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
+    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
     # B = [6, 3, 1, 5, 0, 4, 2]
     # B = [6, 2, 1, 0, 5]
@@ -289,8 +288,8 @@ if __name__ == '__main__':
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
     # lxmixer = LXMixer(B, 3)
-    lxmixer = LXMixer(B, 4)
-    # lxmixer = LXMixer(B, 5)
+    # lxmixer = LXMixer(B, 4)
+    lxmixer = LXMixer(B, 5)
 
     print("\nComputing family of valid graphs...")
     start_time = time.time()
@@ -310,11 +309,11 @@ if __name__ == '__main__':
     print(f"\nTime: {end_time - start_time:.4f} s")
     print("______________")
     
-    print("\nnode_connectors =")
-    for k, v in lxmixer.node_connectors.items():
-        print(f"{k}")
-        for neighbor, X in v.items():
-            print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
+    # print("\nnode_connectors =")
+    # for k, v in lxmixer.node_connectors.items():
+    #     print(f"{k}")
+    #     for neighbor, X in v.items():
+    #         print(f"  <-> {neighbor} {X:0{lxmixer.nL}b}")
 
     print("\nOrbits (without projectors and costs):")
     for nodes, orbit in lxmixer.orbits.items():
@@ -367,8 +366,12 @@ if __name__ == '__main__':
     # """
     # """
    
-    draw_best_graphs(lxmixer)
+    draw_best_graphs(lxmixer, r=0.15, lw =1.5)
+    # draw_family_of_valid_graphs(lxmixer, lw=1.5, r=0.2, group_size=2)
     # fig, ax = plt.subplots()
-    # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
-    # plt.show()
+    # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, x=X0, r=0.1)
     # """
+    # plt.savefig("family_of_valid_graphs.pdf")
+    plt.savefig("best_mixer(s)2.pdf")
+    # plt.tight_layout()
+    plt.show()
