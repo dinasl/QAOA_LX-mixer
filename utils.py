@@ -139,7 +139,7 @@ if __name__ == '__main__':
     suborbits = split_into_suborbits(family_of_valid_graphs=family_of_valid_graphs_1, operators=operators_2, nodes=nodes_2)
     #print("suborbits: ", suborbits)
 
-def find_best_cost(Xs, Zs_operators):#orbit):
+def find_best_cost(Xs, Zs_operators):
     """
     takes in a list of Xs that are log2(nodes) and that generates an orbit. Also takes in a list of Zs that corresponds to the orbit.
     """
@@ -225,7 +225,7 @@ def find_best_cost(Xs, Zs_operators):#orbit):
     return best_Xs_reduced, best_cost#, list(best), min_cost
 
 if __name__ == '__main__':
-    results = find_best_cost([0b0010, 0b0110, 0b1000, 0b1001, 0b1111, 0b0000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])
+    results = find_best_cost([0b0010, 0b0110, 0b1000, 0b1001, 0b1111, 0b0000], [(1, 0b0010), (1, 0b0110), (1, 0b1000), (1, 0b1010), (1, 0b1100), (1, 0b1110)])
 
     print("Best combo of Xs (heuristic):", results[0],"\nBest cost (heuristic):", results[2])#, "\nBest combo of Xs (exact):", results[2], "\nBest cost (exact):", results[3])
     print("Best combo of Xs reduced (heuristic):", results[1])
