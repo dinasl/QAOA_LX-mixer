@@ -21,7 +21,7 @@ def ncnot(P) :
 
 def pauli_int_to_str(P, nL, operator = "X"):
     P = f"{P:0{nL}b}"  # Convert to binary string without '0b' prefix
-    P.replace("0", "I")
+    P = P.replace("0", "I")
     if operator == "X":
         P = P.replace("1", "X")
     elif operator == "Z":

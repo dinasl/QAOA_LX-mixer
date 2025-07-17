@@ -209,13 +209,10 @@ class LXMixer:
         Finds the best mixer based on the computed orbits, edges, minimal generating sets, projectors and costs.
         """
         
-        # best_cost = float('inf')
-        # best_combinations = []
-        
         if len(self.orbits.keys()) == 1:
-            self.best_Xs = [[list(self.orbits.values()).Xs]]
+            self.best_Xs = [[list(self.orbits.values())[0].Xs]]
             self.best_Zs = [[[(1,0)]]] #TODO
-            self.best_cost = self.orbits.keys().cost
+            self.best_cost = list(self.orbits.values())[0].cost
             self.best_combinations = [tuple(self.orbits.keys())]
             return
         
@@ -224,7 +221,7 @@ class LXMixer:
             for combination in combinations(self.orbits.keys(), n):
                 # time.sleep(0.05)
                 if len(set([node for nodes in combination for node in nodes])) != self.nB:
-                    # print(f"Combination {combination} does not cover all nodes in B, skipping.")
+                    print(f"Combination {combination} does not cover all nodes in B, skipping.")
                     continue
                 if not is_connected(combination):
                     continue
@@ -280,14 +277,14 @@ if __name__ == '__main__':
     #     0b01110
     # ] # |B| = 8, nL = 5
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
-    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
+    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
     # B = [6, 3, 1, 5, 0, 4, 2]
     # B = [6, 2, 1, 0, 5]
     # B = [6,5]
 
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
-         0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
+    #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
     
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
