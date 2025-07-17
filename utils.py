@@ -154,7 +154,7 @@ def find_best_cost(Xs, Zs):#orbit):
             hat = reduce(operator.xor, combo)
             all_x_operators.append([combo, hat])
     
-    all_costs = []
+    all_costs = {}
 
     for used_Xs, X_combos in all_x_operators:
         total_cost = 0
@@ -162,58 +162,67 @@ def find_best_cost(Xs, Zs):#orbit):
             cost = ncnot(X_combos ^ Z)
             total_cost += cost
         
-        all_costs.append((used_Xs, total_cost))
+        all_costs[used_Xs] = total_cost
     
     # TODO Check this part!!! might be able to do it more efficiently
     # The Xs we demand will be in the solution somehow (to make sure its an orbit)
     required_set = set(Xs)
     best = None
     min_cost = float('inf')
-
-    for group in combinations(all_costs, n):
-        covered = set()
+    all_costs_as_list = list(all_costs.items())
+    for group in combinations(all_costs_as_list, n):
+        covered_1 = set()
         total_cost = 0
 
         for combo, cost in group:
-            covered.update(combo)
+            covered_1.update(combo)
             total_cost += cost
 
-        if covered >= required_set and total_cost < min_cost:
+        if covered_1 >= required_set and total_cost < min_cost:
             best = group
             min_cost = total_cost
-
-    return list(best), min_cost
-    """
-    # The Xs we demand will be in the solution somehow (to make sure its an orbit)
-    required_set = set(Xs)
-
-    # Checking what has been covered
-    covered_set = set()
-    all_costs = sorted(all_costs, key=lambda x: x[1])
-
-    for X_combo, cost in all_costs:
-        pass
-        
-    """
-
-    """
-    number_of_X_needed = math.log2(len(Xs) + 1)
-    best_Xs_and_cost = []
-
-    for X in Xs:
-        total_cost_for_X = float('inf')
-        for Z in Zs:
-            cost = ncnot(X^Z)
-            total_cost_for_X += cost
-        
-        if len(best_Xs_and_cost) < number_of_X_needed:
-            best_Xs_and_cost.append((X, total_cost_for_X))
-        
-        else:
-            pass
-    """
-            
     
-print("this is the best combo of Xs:", find_best_cost([0b0010, 0b0110, 0b1000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])[0],"\nAnd this is the best cost:", find_best_cost([0b0010, 0b0110, 0b1000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])[1])
+
+    # New version, hopefully more efficient
+    best_Xs = []
+    best_cost = 0
+    covered = set()
+    required = set(Xs)
+    maybe_later = []
+    
+    while len(best_Xs) < n:
+        lowest_cost = min(all_costs.values())
+        keys = [k for k, v in all_costs.items() if v == lowest_cost]
+        #print("this is the key:", keys)
+        #print("this is the lowest cost:", lowest_cost)
+        
+        # iterate through the keys with the lowest cost
+        for key in keys:
+            # Checks that either the key adds to the subset or that it is already covered (i.e. that we are actually creating an orbit)
+            if (not set(key).issubset(covered)) or (required == covered):  # If key has *any* uncovered elements
+                # Checks that if it is already covered, we use the lowest cost from maybe_later
+                if required == covered:
+                    new_key_and_cost = maybe_later.pop(0) if maybe_later else [key, lowest_cost]
+                    best_Xs.append(new_key_and_cost[0])
+                    best_cost += new_key_and_cost[1]
+                else:
+                    covered.update(key)
+                    best_Xs.append(key)
+                    best_cost += lowest_cost
+                
+                if len(best_Xs) == n:
+                    break
+            
+                del all_costs[key]
+            else:
+                del all_costs[key]  
+                maybe_later.append([key, lowest_cost])
+
+
+    return best_Xs, best_cost, list(best), min_cost
+
+results = find_best_cost([0b0010, 0b0110, 0b1000, 0b1001, 0b1111, 0b0000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])
+    
+print("Best combo of Xs (heuristic):", results[0],"\nBest cost (heuristic):", results[1],"\nBest combo of Xs (exact):", results[2], "\nBest cost (exact):", results[3])
 
             
