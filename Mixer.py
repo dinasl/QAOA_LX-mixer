@@ -9,7 +9,7 @@ from tqdm import tqdm
 import sys
 
 from Stabilizer import *
-from utils import ncnot, is_connected, split_into_suborbits
+from utils import ncnot, is_connected, split_into_suborbits, find_best_cost
 from plot_mixers import draw_best_graphs, draw_mixer_graph
 
 # TODO: Implement method for directed graphs (digraph=True). Only for visual representation.
@@ -23,14 +23,11 @@ class Orbit:
     
     Attributes:
         Xs (Set[int]): Logical X operators.
-        X_costs List[int]: Logical X operator costs.
         Zs (List[tuple[int, int]]): Projectors (Z operators).
-        Z_cost (int): Total cost of the projectors.
+        cost (int): Total cost of the orbit.
     """
     Xs: Set[int] = field(default_factory=list)
-    X_costs: List[int] = field(default_factory=list)
     Zs: List[Tuple[int, int]] = field(default_factory=list)
-    Z_cost: int = float('inf')
     cost:int = float('inf')
 
 class LXMixer:
@@ -237,23 +234,10 @@ class LXMixer:
         Computes and updates the costs in the Orbit objects in `orbits`.
         """
         for nodes, orbit in self.orbits.items():
+            best_Xs, best_cost = find_best_cost(orbit.Xs, orbit.Zs)
+            orbit.Xs = best_Xs
+            orbit.cost = best_cost
             
-            orbit.Z_cost = sum([ncnot(Z[1]) for Z in orbit.Zs]) if orbit.Zs else 0
-            
-        #     # if math.log2(len(nodes)) < len(orbit.Xs):
-            orbit.Xs, orbit.X_costs = zip(*sorted(zip(orbit.Xs, [ncnot(X) for X in orbit.Xs]), key=lambda x: x[1])[:int(math.log2(len(nodes)))])
-        #     # else:
-        #     #     orbit.X_costs = [ncnot(X) for X in orbit.Xs]
-            
-            orbit.cost = sum(orbit.X_costs) + orbit.Z_cost
-            
-        # for nodes in self.orbits.keys():
-        #     self.orbits[nodes].Z_cost = sum([ncnot(Z[1]) for Z in self.orbits[nodes].Zs]) if self.orbits[nodes].Zs else 0
-
-        #     self.orbits[nodes].Xs, self.orbits[nodes].X_costs = zip(*sorted(zip(self.orbits[nodes].Xs, [ncnot(X) for X in self.orbits[nodes].Xs]), key=lambda x: x[1])[:int(math.log2(len(nodes)))])
-            
-        #     self.orbits[nodes].cost = sum(self.orbits[nodes].X_costs) + self.orbits[nodes].Z_cost
-        
     def find_best_mixer(self):
         """ 
         Finds the best mixer based on the computed orbits, edges, minimal generating sets, projectors and costs.
@@ -265,9 +249,8 @@ class LXMixer:
         if len(self.orbits.keys()) == 1:
             self.best_Xs = [[list(self.orbits.values())[0].Xs]]
             self.best_Zs = [[[(1,0)]]] #TODO
-            self.best_cost = sum(list(self.orbits.values())[0].X_costs) # There is no projector needed
+            self.best_cost = list(self.orbits.values())[0].cost # There is no projector needed
             self.best_combinations = [tuple(self.orbits.keys())]
-            # return best_Xs, best_Zs, best_cost
             return
         
         N = range(2, len(self.orbits.keys())+1)
@@ -404,7 +387,6 @@ if __name__ == '__main__':
     for nodes, orbit in lxmixer.orbits.items():
         print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}], Zs = [{', '.join(f'{"+" if Z[0] == 1 else "-"}{Z[1]:0{lxmixer.nL}b}' for Z in orbit.Zs if len(Z) == 2)}]")
         print(f"cost = {orbit.cost}")
-        print(f"X costs = [{', '.join(str(X_cost) for X_cost in orbit.X_costs)}], Z cost = {orbit.Z_cost}")
     
     print("\nFinding best mixer...")
     start_time = time.time()

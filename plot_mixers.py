@@ -41,12 +41,12 @@ def draw_arc(ax, start, end, r=0.2, color='black', lw=1):
     )
     ax.add_patch(patch)
         
-def draw_orbit(ax, nodes, Xs, LX, x, color, r, lw, side):
+def draw_orbit(ax, nodes, Xs, LX, x, color, r, lw):
     for X in Xs:
         for node in nodes:
             for neighbor in nodes:
                 if node < neighbor and (node, neighbor) in LX.family_of_valid_graphs[X]:
-                    if side == "left":
+                    if node%2 == 0:
                         y0 = LX.nB - node
                         y1 = LX.nB - neighbor
                     else:
@@ -55,6 +55,10 @@ def draw_orbit(ax, nodes, Xs, LX, x, color, r, lw, side):
                     start = (x, y0)
                     end = (x, y1)
                     draw_arc(ax, start, end, r=r, color=color, lw=lw)
+
+def get_colors(n, cmap_name="tab20", start=0.0, end=1.0):
+    cmap = plt.get_cmap(cmap_name)
+    return [cmap(i) for i in np.linspace(start, end, n)]
                     
 def draw_mixer_graph(ax, combination, Xs, LX, x, r=0.3, lw=1):
     draw_nodes(ax, x, LX.B, LX.nL)
@@ -65,11 +69,11 @@ def draw_mixer_graph(ax, combination, Xs, LX, x, r=0.3, lw=1):
     orbit_labels = []
     for color_n, nodes in enumerate(combination):
         orbit_labels.append(fr"$\langle${", ".join(f"${pauli_int_to_str(X, LX.nL)}$"for X in Xs[color_n])}$\rangle$")
-        if color_n % 2 == 0:
-            side = "left"
-        else:
-            side = "right"
-        draw_orbit(ax, nodes, Xs[color_n], LX, x, colors[color_n], r, lw, side)
+        # if color_n % 2 == 0:
+        #     side = "left"
+        # else:
+        #     side = "right"
+        draw_orbit(ax, nodes, Xs[color_n], LX, x, colors[color_n], r, lw)
                     
     handles = [plt.Line2D([0], [0],
                     linestyle="-",      # solid line
@@ -92,10 +96,6 @@ def draw_best_graphs(LX, r=0.3, lw=1):
     plt.tight_layout()
     plt.show()
     
-def get_colors(n, cmap_name="tab20", start=0.0, end=1.0):
-    cmap = plt.get_cmap(cmap_name)
-    return [cmap(i) for i in np.linspace(start, end, n)]
-
 # def get_radii(n, r_min=0.1, r_max=0.3):
 #     """
 #     Generate a list of radii for arcs.
