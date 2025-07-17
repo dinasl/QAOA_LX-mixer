@@ -9,7 +9,7 @@ from tqdm import tqdm
 import sys
 
 from Stabilizer import *
-from utils import ncnot, is_connected, split_into_suborbits
+from utils import ncnot, is_connected, split_into_suborbits, is_power_of_two
 from plot_mixers import draw_best_graphs, draw_mixer_graph
 
 # TODO: Implement method for directed graphs (digraph=True). Only for visual representation.
@@ -138,7 +138,6 @@ class LXMixer:
                 X_ij = self.B[i] ^ self.B[j]
                 if X_ij not in used_X:
                     self.family_of_valid_graphs[X_ij] = [(i,j)]
-                    # self.family_of_valid_graphs_flattened[X_ij] = [i,j]
                 else: 
                     self.family_of_valid_graphs[X_ij].append((i,j))
                     # self.family_of_valid_graphs_flattened[X_ij].extend([i,j])
@@ -155,82 +154,49 @@ class LXMixer:
             for i, j in E:
                 self.node_connectors[i][j] = X
                 self.node_connectors[j][i] = X
-
-        processed_nodes = [] # Nodes in (>2) orbit 
-        # processed_nodes = set()
-
+                
+        processed_nodes = set()
+        
         for seed in range(self.nB):
-            temp_processed_nodes = []
+            print(f"Processing seed {seed}")
+            if seed in processed_nodes:
+                print(f"Seed {seed} already processed, skipping.")
+                continue
             
-            seed_Xs = list(self.node_connectors[seed].values()) # All |B|-1 logical X operators connected to the seed node
+            seed_Xs = list(self.node_connectors[seed].values())
+            stack = []
+            stack.append(([], seed_Xs, tuple([seed])))
             
-            stack = [] # Stack for depth-first search
-            stack.append(([], seed_Xs, set([seed]))) # Initialize
             while stack:
-                current_path, available_Xs, current_nodes = stack.pop() # Bakctracking step: processes each state in last-in-first-out order
+                current_path, available_Xs, current_nodes = stack.pop()
                 current_nodes_tuple = tuple(sorted(current_nodes))
-                
-                if (len(current_nodes) >= 2 and len(current_path) > 1): # If the current path has more than one X operator and the current nodes are more than 2, it is a valid orbit                     
-                    
-                    # Create a new Orbit object if it doesn't exist
-                    if current_nodes_tuple not in self.orbits.keys():
-                        self.orbits[current_nodes_tuple] = Orbit(Xs=list(current_path))
-                        temp_processed_nodes.append(current_nodes_tuple)
-                    else:
-                        self.orbits[current_nodes_tuple].Xs.extend(current_path)
-                        self.orbits[current_nodes_tuple].Xs = list(set(self.orbits[current_nodes_tuple].Xs))
-                        # Update the processed nodes with the current nodes
-                
-                if len(current_path) == len(seed_Xs): # If the path is |B|-1 long, backtrack
+                if len(current_nodes) == 2:
+                    self.orbits[current_nodes_tuple] = Orbit(Xs=current_path)
+                elif self.orbits.keys():
+                    print(self.orbits.keys())
+                    for nodes in list(self.orbits.keys()):
+                        if set(nodes).issubset(set(current_nodes)):
+                            self.orbits[tuple(sorted(current_nodes))] = Orbit(Xs=current_path)
+                            self.orbits.pop(nodes)
+                            processed_nodes.update(current_nodes)
+                    if not any(set(current_nodes).issubset(set(nodes)) for nodes in list(self.orbits.keys())):
+                        self.orbits[current_nodes_tuple] = Orbit(Xs=current_path)
+                        processed_nodes.update(current_nodes)
+            
+                if len(current_path) == len(seed_Xs):
                     continue
-                                
-                for x, X in enumerate(available_Xs): # Iterate over all the next paths in decision tree
+                
+                for x, X in enumerate(available_Xs):
                     new_path = current_path + [X]
+                    new_available = available_Xs[:x] + available_Xs[x+1:]
+                    new_nodes = set()
+                    for node in current_nodes:
+                        new_nodes.update(n for edge in self.family_of_valid_graphs[X] for n in edge if node in edge)
                     
-                    new_available = available_Xs[:x] + available_Xs[x+1:] # available_Xs - {X}
-                    
-                    if len(current_path) == 0: # If no path has been taken yet, the new nodes are the ones connected by the first X operator
-                        new_nodes = [node for u, v in self.family_of_valid_graphs[X] for node in (u, v)]                    
-                    else: 
-                        # Sets of nodes that form orbits cannot have edges going out of them
-                        new_nodes = [node for u, v in self.family_of_valid_graphs[X] if u in current_nodes and v in current_nodes for node in (u, v)]
+                    if len(new_nodes) == len(current_nodes) or not is_power_of_two(len(new_nodes)):
+                        continue
                         
-                        if len(new_nodes) == 0 or seed not in new_nodes: # If the path doesn't lead anywhere, don't add it to the stack # THIS IS NEWWWW
-                            continue
-                        
-                        if tuple(sorted(new_nodes)) in processed_nodes: # If the new nodes are already processed, skip it
-                            continue
-                        
-                    stack.append((new_path, new_available, new_nodes)) # Add valid paths to the stack
-            
-            # Split unconnected graphs into suborbits
-            for nodes in temp_processed_nodes:
-                Xs = self.orbits[nodes].Xs
-                if len(Xs) < len(nodes)-1: # If the orbit is not complete
-                    new_orbits = split_into_suborbits(self.family_of_valid_graphs, Xs, nodes)
-                    self.orbits.pop(nodes) # Remove the orbit from the dictionary
-                    for new_orbit in new_orbits:
-                        self.orbits[tuple(sorted(new_orbit))] = Orbit(Xs=Xs)
-
-            processed_nodes = list(self.orbits.keys())
-            
-            if not any(seed in nodes for nodes in processed_nodes):
-                for neighbour, X in self.node_connectors[seed].items():
-                    self.orbits[tuple(sorted([seed, neighbour]))] = Orbit(Xs=[X])
-                    
-        print(len(self.orbits.keys()), "orbits. ", len(set(self.orbits.keys())), "unique orbits found.")
-        
-        # Split unconnected graphs into suborbits
-        # orbit_nodes_to_check = list(self.orbits.keys())
-        # for nodes in orbit_nodes_to_check:
-        #     Xs = self.orbits[nodes].Xs
-        #     if len(Xs) < len(nodes)-1:
-        #         new_orbits = split_into_suborbits(self.family_of_valid_graphs, Xs, nodes)
-        #         self.orbits.pop(nodes)
-        #         for new_orbit in new_orbits:
-        #             self.orbits[tuple(sorted(new_orbit))] = Orbit(Xs=Xs)
-        
-        # print(len(self.orbits), same_nodes)
+                    stack.append((new_path, new_available, tuple(sorted(new_nodes))))
                     
     def compute_costs(self):
         """
@@ -331,15 +297,15 @@ if __name__ == '__main__':
     #     0b00110,
     #     0b01110
     # ] # |B| = 8, nL = 5
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # Example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # 8-orbit
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]
-    # B = [6, 3, 1, 5, 0, 4, 2] # cost = 0
+    # B = [6, 3, 1, 5, 0, 4, 2]
     # B = [6, 2, 1, 0, 5]
     # B = [6,5]
 
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
-    #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
+         0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # PROBLEM
     
     print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}")
     
@@ -375,7 +341,7 @@ if __name__ == '__main__':
     for nodes, orbit in lxmixer.orbits.items():
         print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
     
-    # """
+    """
     
     S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits)
     
@@ -420,10 +386,11 @@ if __name__ == '__main__':
     print("\nBest projectors:")
     print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
    
+    """
     # """
    
-    draw_best_graphs(lxmixer)
-    # fig, ax = plt.subplots()
-    # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
-    # plt.show()
+    # draw_best_graphs(lxmixer)
+    fig, ax = plt.subplots()
+    draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
+    plt.show()
     # """
