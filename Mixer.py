@@ -155,9 +155,9 @@ class LXMixer:
         processed_nodes = set()
         
         for seed in range(self.nB):
-            print(f"Processing seed {seed}")
+            #print(f"Processing seed {seed}")
             if seed in processed_nodes:
-                print(f"Seed {seed} already processed, skipping.")
+                #print(f"Seed {seed} already processed, skipping.")
                 continue
             
             seed_Xs = list(self.node_connectors[seed].values())
@@ -170,7 +170,7 @@ class LXMixer:
                 if len(current_nodes) == 2:
                     self.orbits[current_nodes_tuple] = Orbit(Xs=current_path)
                 elif self.orbits.keys():
-                    print(self.orbits.keys())
+                    #print(self.orbits.keys())
                     for nodes in list(self.orbits.keys()):
                         if set(nodes).issubset(set(current_nodes)):
                             self.orbits[tuple(sorted(current_nodes))] = Orbit(Xs=current_path)
@@ -221,7 +221,7 @@ class LXMixer:
             for combination in combinations(self.orbits.keys(), n):
                 # time.sleep(0.05)
                 if len(set([node for nodes in combination for node in nodes])) != self.nB:
-                    print(f"Combination {combination} does not cover all nodes in B, skipping.")
+                    #print(f"Combination {combination} does not cover all nodes in B, skipping.")
                     continue
                 if not is_connected(combination):
                     continue
@@ -327,6 +327,8 @@ if __name__ == '__main__':
     print("\nComputing minimal generating sets...")
     start_time = time.time()
     S.compute_minimal_generating_sets()
+    for orbits in S.orbit_dictionary.values():
+        print("Minimal generating sets:", orbits.Zs)
     end_time = time.time()
     print(f"\nTime: {end_time - start_time:.4f} s")
     print("______________")
@@ -334,6 +336,8 @@ if __name__ == '__main__':
     print("\nComputing projectors...")
     start_time = time.time()
     S.compute_projector_stabilizers()
+    for orbits in S.orbit_dictionary.values():
+        print("Projectors:", orbits.Zs)
     end_time = time.time()
     print(f"\nTime: {end_time - start_time:.4f} s")
     print("______________")
@@ -367,7 +371,7 @@ if __name__ == '__main__':
     # """
     # """
    
-    draw_best_graphs(lxmixer)
+    # draw_best_graphs(lxmixer)
     # fig, ax = plt.subplots()
     # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
     # plt.show()
