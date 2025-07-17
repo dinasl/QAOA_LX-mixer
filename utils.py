@@ -1,5 +1,8 @@
 import math
 import networkx as nx
+from itertools import combinations
+from functools import reduce
+import operator
 
 is_power_of_two = lambda x: (x > 0) and (x & (x - 1)) == 0
 
@@ -16,9 +19,9 @@ def ncnot(P) :
     ncnot = P.bit_count()
     return (ncnot > 1)*2*(ncnot - 1)
 
-def pauli_int_to_str(P, nL, operator="X"):
-    P = f"{P:0{nL}b}"
-    P = P.replace("0", "I")
+def pauli_int_to_str(P, operator):
+    P = str(P)
+    P.replace("0", "I")
     if operator == "X":
         P = P.replace("1", "X")
     elif operator == "Z":
@@ -91,9 +94,6 @@ def split_into_suborbits(family_of_valid_graphs, operators, nodes = None):
     """
     suborbit_size = len(operators) + 1
     
-    print("suborbit size: ", suborbit_size)
-    print("Number of nodes: ", len(nodes))
-    
     # Finds how many X operators are needed to cover the suborbit
     least_number_of_operators = int(math.log2(suborbit_size))
 
@@ -115,7 +115,7 @@ def split_into_suborbits(family_of_valid_graphs, operators, nodes = None):
     return suborbits
 
 if __name__ == '__main__':
-    suborbits = split_into_suborbits(family_of_valid_graphs={0b0010 : [(0, 1), (2, 7), (3, 9), (4, 13), (5, 10), (6, 8), (11, 14)],
+    family_of_valid_graphs_1 = {0b0010 : [(0, 1), (2, 7), (3, 9), (4, 13), (5, 10), (6, 8), (11, 14)],
     0b0111 : [(0, 2), (1, 7), (3, 4), (5, 14), (6, 12), (9, 13), (10, 11)],
     0b1010 : [(0, 3), (1, 9), (2, 4), (6, 11), (7, 13), (8, 14), (10, 12)],
     0b1101 : [(0, 4), (1, 13), (2, 3), (5, 8), (6, 10), (7, 9), (11, 12)],
@@ -129,5 +129,103 @@ if __name__ == '__main__':
     0b0110 : [(0, 12), (2, 6), (3, 10), (4, 11), (5, 9), (7, 8), (13, 14)],
     0b1111 : [(0, 13), (1, 4), (2, 9), (3, 7), (5, 6), (8, 10), (12, 14)],
     0b1001 : [(0, 14), (1, 11), (2, 5), (3, 8), (6, 9), (7, 10), (12, 13)],
-    0b0100 : [(1, 12), (2, 8), (3, 5), (4, 14), (6, 7), (9, 10), (11, 13)]}, operators=[0b1001, 0b0110, 0b111], nodes=(0, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14))
-    print("suborbits: ", suborbits)
+    0b0100 : [(1, 12), (2, 8), (3, 5), (4, 14), (6, 7), (9, 10), (11, 13)]}
+    operators_1 = [0b1001, 0b0110, 0b111]
+    nodes_1 = (0, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14)
+
+    operators_2 = [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110]
+    nodes_2 = (2, 6, 7, 8)
+    
+    suborbits = split_into_suborbits(family_of_valid_graphs=family_of_valid_graphs_1, operators=operators_2, nodes=nodes_2)
+    #print("suborbits: ", suborbits)
+
+def find_best_cost(Xs, Zs_operators):#orbit):
+    """
+    takes in a list of Xs that are log2(nodes) and that generates an orbit. Also takes in a list of Zs that corresponds to the orbit.
+    """
+    # Xs = orbit.Xs 
+    # Zs = orbit.Zs #remember to change from (1, string) to only string...
+    all_x_operators = []
+    n = len(Xs)
+    Zs = [string[1] for string in Zs_operators]
+    
+    # Generate all combinations of Xs and their corresponding hats
+    for r in range(1, n + 1):  # Start from 1 to include single elements
+        for combo in combinations(Xs, r):
+            hat = reduce(operator.xor, combo)
+            all_x_operators.append([combo, hat])
+    
+    all_costs = {}
+
+    for used_Xs, X_combos in all_x_operators:
+        total_cost = 0
+        for Z in Zs:
+            cost = ncnot(X_combos ^ Z)
+            total_cost += cost
+        
+        all_costs[used_Xs] = total_cost
+    
+    """
+    # TODO Check this part!!! might be able to do it more efficiently
+    # The Xs we demand will be in the solution somehow (to make sure its an orbit)
+    required_set = set(Xs)
+    best = None
+    min_cost = float('inf')
+    all_costs_as_list = list(all_costs.items())
+    for group in combinations(all_costs_as_list, n):
+        covered_1 = set()
+        total_cost = 0
+
+        for combo, cost in group:
+            covered_1.update(combo)
+            total_cost += cost
+
+        if covered_1 >= required_set and total_cost < min_cost:
+            best = group
+            min_cost = total_cost
+    """
+
+    # New version, hopefully more efficient
+    best_Xs = []
+    best_cost = 0
+    covered = set()
+    required = set(Xs)
+    maybe_later = []
+    
+    while len(best_Xs) < n:
+        lowest_cost = min(all_costs.values())
+        keys = [k for k, v in all_costs.items() if v == lowest_cost]
+        #print("this is the key:", keys)
+        #print("this is the lowest cost:", lowest_cost)
+        
+        # iterate through the keys with the lowest cost
+        for key in keys:
+            # Checks that either the key adds to the subset or that it is already covered (i.e. that we are actually creating an orbit)
+            if (not set(key).issubset(covered)) or (required == covered):  # If key has *any* uncovered elements
+                # Checks that if it is already covered, we use the lowest cost from maybe_later
+                if required == covered:
+                    new_key_and_cost = maybe_later.pop(0) if maybe_later else [key, lowest_cost]
+                    best_Xs.append(new_key_and_cost[0])
+                    best_cost += new_key_and_cost[1]
+                else:
+                    covered.update(key)
+                    best_Xs.append(key)
+                    best_cost += lowest_cost
+                
+                if len(best_Xs) == n:
+                    break
+            
+                del all_costs[key]
+            else:
+                del all_costs[key]  
+                maybe_later.append([key, lowest_cost])
+
+    best_Xs_reduced = [reduce(operator.xor, x) for x in best_Xs]
+
+    return best_Xs_reduced, best_cost#, list(best), min_cost
+
+if __name__ == '__main__':
+    results = find_best_cost([0b0010, 0b0110, 0b1000, 0b1001, 0b1111, 0b0000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])
+
+    print("Best combo of Xs (heuristic):", results[0],"\nBest cost (heuristic):", results[2])#, "\nBest combo of Xs (exact):", results[2], "\nBest cost (exact):", results[3])
+    print("Best combo of Xs reduced (heuristic):", results[1])
