@@ -323,7 +323,7 @@ if __name__ == '__main__':
     for nodes, orbit in lxmixer.orbits.items():
         print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
     
-    """
+    # """
     
     S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits)
     
@@ -367,11 +367,11 @@ if __name__ == '__main__':
     print("\nBest projectors:")
     print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
    
-    """
+    # """
     # """
    
-    # draw_best_graphs(lxmixer)
-    fig, ax = plt.subplots()
-    draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
-    plt.show()
+    draw_best_graphs(lxmixer)
+    # fig, ax = plt.subplots()
+    # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, -0.1, r=0.1)
+    # plt.show()
     # """
