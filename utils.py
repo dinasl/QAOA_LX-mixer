@@ -219,10 +219,12 @@ def find_best_cost(Xs, Zs):#orbit):
                 del all_costs[key]  
                 maybe_later.append([key, lowest_cost])
 
+    best_Xs_reduced = [reduce(operator.xor, x) for x in best_Xs]
 
-    return best_Xs, best_cost#, list(best), min_cost
+    return best_Xs_reduced, best_cost#, list(best), min_cost
 
 if __name__ == '__main__':
     results = find_best_cost([0b0010, 0b0110, 0b1000, 0b1001, 0b1111, 0b0000], [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110])
 
-    print("Best combo of Xs (heuristic):", results[0],"\nBest cost (heuristic):", results[1], "\nBest combo of Xs (exact):", results[2], "\nBest cost (exact):", results[3])
+    print("Best combo of Xs (heuristic):", results[0],"\nBest cost (heuristic):", results[2])#, "\nBest combo of Xs (exact):", results[2], "\nBest cost (exact):", results[3])
+    print("Best combo of Xs reduced (heuristic):", results[1])
