@@ -372,6 +372,6 @@ if __name__ == '__main__':
     # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, x=X0, r=0.1)
     # """
     # plt.savefig("family_of_valid_graphs.pdf")
-    plt.savefig("best_mixer(s)2.pdf")
+    # plt.savefig("best_mixer(s)2.pdf")
     # plt.tight_layout()
     plt.show()
