@@ -139,7 +139,7 @@ if __name__ == '__main__':
     suborbits = split_into_suborbits(family_of_valid_graphs=family_of_valid_graphs_1, operators=operators_2, nodes=nodes_2)
     #print("suborbits: ", suborbits)
 
-def find_best_cost(Xs, Zs):#orbit):
+def find_best_cost(Xs, Zs_operators):#orbit):
     """
     takes in a list of Xs that are log2(nodes) and that generates an orbit. Also takes in a list of Zs that corresponds to the orbit.
     """
@@ -147,6 +147,7 @@ def find_best_cost(Xs, Zs):#orbit):
     # Zs = orbit.Zs #remember to change from (1, string) to only string...
     all_x_operators = []
     n = len(Xs)
+    Zs = [string[1] for string in Zs_operators]
     
     # Generate all combinations of Xs and their corresponding hats
     for r in range(1, n + 1):  # Start from 1 to include single elements
