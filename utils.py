@@ -160,7 +160,7 @@ def find_best_cost(Xs, Zs_operators):
     for used_Xs, X_combos in all_x_operators:
         total_cost = 0
         for Z in Zs:
-            cost = ncnot(X_combos ^ Z)
+            cost = ncnot(X_combos | Z)
             total_cost += cost
         
         all_costs[used_Xs] = total_cost
