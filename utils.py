@@ -20,6 +20,20 @@ def ncnot(P) :
     return (ncnot > 1)*2*(ncnot - 1)
 
 def pauli_int_to_str(P, nL, operator="X"):
+    """
+    Converts a Pauli string represented as an integer to its string representation.
+
+    Args:
+        P (int): Pauli string.
+        nL (int): Number of qubits.
+        operator (str, optional): Whether the 1s represent "X" or "Z" operators. Defaults to "X".
+
+    Raises:
+        ValueError: If the operator is not "X" or "Z".
+
+    Returns:
+        str: Formatted Pauli string.
+    """
     P = f"{P:0{nL}b}"
     P = P.replace("0", "I")
     if operator == "X":
@@ -47,8 +61,8 @@ def convert_to_binary_string(int_values, n):
     Convert integers to binary strings with n bits.
     
     - If int_values is a single int: return binary string
-    - If it's a list: return list of binary strings or (bin, bin) tuples
-    - If it's a dict: return dict with binary string keys and values
+    - If int_values is a list: return list of binary strings or (bin, bin) tuples
+    - If int_values is a dict: return dict with binary string keys and values
     """
     
     if isinstance(int_values, int):
@@ -75,6 +89,15 @@ def convert_to_binary_string(int_values, n):
         raise TypeError("Input must be int, list, or dict of ints")
 
 def is_connected(orbits):
+    """
+    Checks if the provided orbits are connected, meaning that there is at least one node in common between any two orbits.
+
+    Args:
+        orbits (List[Tuple[int, ...]]): Node indices representing the group generated sets.
+
+    Returns:
+        bool: True if the orbits are connected, False otherwise.
+    """
     # Short circuit evaluation
     for orbit in orbits:
         if not any(set(orbit).intersection(set(other_orbit)) for other_orbit in orbits if other_orbit != orbit):
@@ -114,34 +137,16 @@ def split_into_suborbits(family_of_valid_graphs, operators, nodes = None):
 
     return suborbits
 
-if __name__ == '__main__':
-    family_of_valid_graphs_1 = {0b0010 : [(0, 1), (2, 7), (3, 9), (4, 13), (5, 10), (6, 8), (11, 14)],
-    0b0111 : [(0, 2), (1, 7), (3, 4), (5, 14), (6, 12), (9, 13), (10, 11)],
-    0b1010 : [(0, 3), (1, 9), (2, 4), (6, 11), (7, 13), (8, 14), (10, 12)],
-    0b1101 : [(0, 4), (1, 13), (2, 3), (5, 8), (6, 10), (7, 9), (11, 12)],
-    0b1110 : [(0, 5), (1, 10), (2, 14), (4, 8), (6, 13), (7, 11), (9, 12)],
-    0b0001 : [(0, 6), (1, 8), (2, 12), (3, 11), (4, 10), (5, 13), (9, 14)],
-    0b0101 : [(0, 7), (1, 2), (3, 13), (4, 9), (5, 11), (8, 12), (10, 14)],
-    0b0011 : [(0, 8), (1, 6), (3, 14), (4, 5), (7, 12), (9, 11), (10, 13)],
-    0b1000 : [(0, 9), (1, 3), (2, 13), (4, 7), (5, 12), (6, 14), (8, 11)],
-    0b1100 : [(0, 10), (1, 5), (2, 11), (3, 12), (4, 6), (7, 14), (8, 13)],
-    0b1011 : [(0, 11), (1, 14), (2, 10), (3, 6), (4, 12), (5, 7), (8, 9)],
-    0b0110 : [(0, 12), (2, 6), (3, 10), (4, 11), (5, 9), (7, 8), (13, 14)],
-    0b1111 : [(0, 13), (1, 4), (2, 9), (3, 7), (5, 6), (8, 10), (12, 14)],
-    0b1001 : [(0, 14), (1, 11), (2, 5), (3, 8), (6, 9), (7, 10), (12, 13)],
-    0b0100 : [(1, 12), (2, 8), (3, 5), (4, 14), (6, 7), (9, 10), (11, 13)]}
-    operators_1 = [0b1001, 0b0110, 0b111]
-    nodes_1 = (0, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14)
-
-    operators_2 = [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110]
-    nodes_2 = (2, 6, 7, 8)
-    
-    suborbits = split_into_suborbits(family_of_valid_graphs=family_of_valid_graphs_1, operators=operators_2, nodes=nodes_2)
-    #print("suborbits: ", suborbits)
-
 def find_best_cost(Xs, Zs_operators):
     """
-    takes in a list of Xs that are log2(nodes) and that generates an orbit. Also takes in a list of Zs that corresponds to the orbit.
+    Finds the best combination of logical X operators that generates an orbit, minimizing the cost function.
+    
+    Args:
+        Xs (List[int]): A list of logical X operators (int representations) that generates an orbit.
+        Zs_operators (List[Tuple[int, str]]): A list of tuples representing the Z-operators, where the first element is the sign(+1/-1) and the second is the int representation of the oeprator.
+    
+    Return:
+        List[int]: A list of the best logical X operators (int representations).
     """
     # Xs = orbit.Xs 
     # Zs = orbit.Zs #remember to change from (1, string) to only string...
@@ -229,3 +234,27 @@ if __name__ == '__main__':
 
     print("Best combo of Xs (heuristic):", results[0],"\nBest cost (heuristic):", results[2])#, "\nBest combo of Xs (exact):", results[2], "\nBest cost (exact):", results[3])
     print("Best combo of Xs reduced (heuristic):", results[1])
+    
+    # family_of_valid_graphs_1 = {0b0010 : [(0, 1), (2, 7), (3, 9), (4, 13), (5, 10), (6, 8), (11, 14)],
+    # 0b0111 : [(0, 2), (1, 7), (3, 4), (5, 14), (6, 12), (9, 13), (10, 11)],
+    # 0b1010 : [(0, 3), (1, 9), (2, 4), (6, 11), (7, 13), (8, 14), (10, 12)],
+    # 0b1101 : [(0, 4), (1, 13), (2, 3), (5, 8), (6, 10), (7, 9), (11, 12)],
+    # 0b1110 : [(0, 5), (1, 10), (2, 14), (4, 8), (6, 13), (7, 11), (9, 12)],
+    # 0b0001 : [(0, 6), (1, 8), (2, 12), (3, 11), (4, 10), (5, 13), (9, 14)],
+    # 0b0101 : [(0, 7), (1, 2), (3, 13), (4, 9), (5, 11), (8, 12), (10, 14)],
+    # 0b0011 : [(0, 8), (1, 6), (3, 14), (4, 5), (7, 12), (9, 11), (10, 13)],
+    # 0b1000 : [(0, 9), (1, 3), (2, 13), (4, 7), (5, 12), (6, 14), (8, 11)],
+    # 0b1100 : [(0, 10), (1, 5), (2, 11), (3, 12), (4, 6), (7, 14), (8, 13)],
+    # 0b1011 : [(0, 11), (1, 14), (2, 10), (3, 6), (4, 12), (5, 7), (8, 9)],
+    # 0b0110 : [(0, 12), (2, 6), (3, 10), (4, 11), (5, 9), (7, 8), (13, 14)],
+    # 0b1111 : [(0, 13), (1, 4), (2, 9), (3, 7), (5, 6), (8, 10), (12, 14)],
+    # 0b1001 : [(0, 14), (1, 11), (2, 5), (3, 8), (6, 9), (7, 10), (12, 13)],
+    # 0b0100 : [(1, 12), (2, 8), (3, 5), (4, 14), (6, 7), (9, 10), (11, 13)]}
+    # operators_1 = [0b1001, 0b0110, 0b111]
+    # nodes_1 = (0, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14)
+
+    # operators_2 = [0b0010, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110]
+    # nodes_2 = (2, 6, 7, 8)
+    
+    # suborbits = split_into_suborbits(family_of_valid_graphs=family_of_valid_graphs_1, operators=operators_2, nodes=nodes_2)
+    # #print("suborbits: ", suborbits)
