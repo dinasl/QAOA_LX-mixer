@@ -18,13 +18,12 @@ def draw_nodes(ax, x, nodes, nL):
         nodes (list): List of nodes to draw.
         nL (int): The number of qubits, used for formatting the binary strings.
     """
-    x_text = x
     N = len(nodes) # Number of nodes.
     for i in range(N):
         y = N - i # y-coordinate is inverted to match the plot's y-axis direction.
         ax.plot(x, y, "o", markersize=16, color="white") # Draw the node as a white circle.
-        ax.text(x_text, y, fr"$|${nodes[i]:0{nL}b}$\rangle$", 
-                fontsize=FONTSIZE, verticalalignment="center", color="black")
+        ax.text(x, y, fr"$|${nodes[i]:0{nL}b}$\rangle$", 
+                fontsize=FONTSIZE, verticalalignment="center", horizontalalignment="center", color="black")
         ax.set_xlim(-1, 1)
         ax.axis("off")  # Hide the axes for a cleaner look.
         

@@ -254,7 +254,7 @@ if __name__ == '__main__':
     # B = [0b10011, 0b01100, 0b11000, 0b00011,
     #     0b01001, 0b10100, 0b00110, 0b01110] nB = 8
     
-    print(f"\nB = {[f'{b:0{len(bin(max(B)))-2}b}' for b in B]}") # Print B in binary format.
+    print(f"\nB = {[f"{b:0{len(bin(max(B)))-2}b}" for b in B]}") # Print B in binary format.
     
     # Initialize the LXMixer with the feasible set B and number of logical qubits nL.
     # lxmixer = LXMixer(B, 3)
@@ -349,7 +349,4 @@ if __name__ == '__main__':
     
     plt.show()
     
-    # Save figures if needed (run graphing functions one at a time).
-    # plt.savefig("family_of_valid_graphs.pdf")
-    # plt.savefig("best_mixer(s)2.pdf")
-    # TODO: Pass `save_as` as parameter in the drawing functions.
+    # If wanting to save plots, use the `saveas` parameter in the drawing functions.
