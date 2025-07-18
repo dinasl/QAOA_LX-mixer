@@ -9,7 +9,7 @@ X0 = 0
 FONTSIZE = 7
 
 def draw_nodes(ax, x, nodes, nL):
-    x_text = -0.12 + x
+    x_text = -0.15 + x
     N = len(nodes)
     positions = {}
     for i in range(N):
