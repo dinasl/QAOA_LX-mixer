@@ -239,11 +239,11 @@ if __name__ == '__main__':
     # B = [6,5] # nB = 2
     
     # nL = 4
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # nB = 5, example from the article
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # nB = 5, example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
-    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010]] # nB = 7
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
-    #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
+    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010] # nB = 7
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
+         0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
     
     # nL = 5
     # B = [0b00001, 0b00010, 0b00100,
@@ -340,14 +340,13 @@ if __name__ == '__main__':
     # draw_family_of_valid_graphs(lxmixer, lw=1.5, r=0.2, group_size=2)
    
     # Draw the best mixer graph.
-    draw_best_graphs(lxmixer, r=0.3, lw =1.25)
+    draw_best_graphs(lxmixer, r=0.15, lw =1.25)
     
     # Draw specified orbit(s).
     # fig, ax = plt.subplots()
     # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, x=X0, r=0.1)
     # """
     
-    # plt.tight_layout() # Consider using depending on output.
     plt.show()
     
     # Save figures if needed (run graphing functions one at a time).
