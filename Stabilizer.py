@@ -81,7 +81,8 @@ class Stabilizer:
             
             seed = self.B[nodes[0]]
             G0 = [((-1 if (seed >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
-            
+            print("G0: ", G0)
+            print("Seed: ", seed)
             #iteration process for algoritm 1
             for x_string in orbit.Xs: #TODO reduced_orbit_x:, orbit.Xs:
                 G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
@@ -109,13 +110,16 @@ class Stabilizer:
                     #TODO what happens if there is only 1 anti-commuting stabilizer? -> just add it to the list of commuting stabilizers?
                     I_d_2_Z = [] 
                 
+                print("I_c: ", I_c)
+                print("I_d: ", I_d)
                 #creates a list of tuples (+-1, Z-string) for commuting pairs  
                 I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
-
+                print("I_c_Z: ", I_c_Z)
+                print("I_d_2_Z: ", I_d_2_Z)
 
                 G_new = I_c_Z + I_d_2_Z
                 G0 = G_new
-            
+                print("G0: ", G0)
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = G0 #removed list from list(G0) since it is already a list of tuples
             
