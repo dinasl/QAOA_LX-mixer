@@ -24,7 +24,8 @@ class TestFindBestCost(unittest.TestCase):
                 best_Xs_reduced, best_cost = find_best_cost(case["Xs"], case["Zs"])
                 self.assertEqual(set(best_Xs_reduced), set(case["expected_best_Xs_reduced"]))
                 self.assertEqual(best_cost, case["expected_best_cost"])
-    
+
+#TODO does not work (unittest wrong I think), however, not used in the code anymore    
 class TestSplitIntoSuborbits(unittest.TestCase):
     def setUp(self):
         self.test_cases = [
