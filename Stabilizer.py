@@ -3,6 +3,7 @@ import itertools
 import utils
 from functools import reduce
 from sympy import Matrix, GF
+import math
 
 class Stabilizer:
     def __init__(self, B, n, orbit_dictionary):
@@ -70,6 +71,13 @@ class Stabilizer:
             #use seed to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
             #found the seed from the 0th element of the tuple, which corresponds to a state saved as a bin int in self.B 
             #TODO reducing the orbit like this does NOT work (makes all the projectors equal????), 
+            k = int(math.log2(len(nodes)))
+            if k != len(orbit.Xs):
+                reduced_orbit_x = set((list(orbit.Xs))[:k])
+                # print("orbit Xs: ", orbit.Xs)
+                # print("reduced orbit Xs: ", reduced_orbit_x)
+            
+            """NB: the k stuff above is not in use"""
             
             seed = self.B[nodes[0]]
             G0 = [((-1 if (seed >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
@@ -112,7 +120,6 @@ class Stabilizer:
             final_minimal_generating_set_1_orbit = G0 #removed list from list(G0) since it is already a list of tuples
             
             self.orbit_dictionary[nodes].Zs = final_minimal_generating_set_1_orbit
-            #print("Minimal generating set for orbit :", nodes, "\nis: ", final_minimal_generating_set_1_orbit)
 
     def compute_projector_stabilizers(self, restricted = False):
         """
@@ -162,19 +169,19 @@ class Stabilizer:
                 
                 minimal_generating_set = orbit.Zs
                 
+                # If |B| = 2^n, then we can just return the identity projector, TODO is this correct???
+                if len(self.B) == 2**self.n:
+                    orbit.Zs = [(1, 0)]
+                    return
+                
                 #all possible combinations
                 k = len(minimal_generating_set)
                 projector = []
-                
-                # TODO Check if minimal_generating_set is empty, might not be necessary if we ensure an actual orbit (now there can be 12 nodes)
-                try: 
-                    signs, z_strings = zip(*minimal_generating_set)
-                    signs = np.array(signs)
-                    z_strings = np.array(z_strings)
-                except ValueError:
-                    #print("No minimal generating set found for orbit:", orbit)
-                    #print("No projectors are needed.")
-                    continue
+
+                signs, z_strings = zip(*minimal_generating_set)
+                signs = np.array(signs)
+                z_strings = np.array(z_strings)
+            
                 # Get all binary combinations (2^k × k)
                 all_choices = np.array(list(itertools.product([0, 1], repeat=k)))  # shape (2^k, k)
 
@@ -198,28 +205,26 @@ class Stabilizer:
                 # Updating so that we disregard the minimal generating sets and only keep the projectors 
                 orbit.Zs = projector #changed to projector from projectors
 
-                #print("Projector for a given orbit: ", orbit.Zs)
+                # print("Projector for a given orbit: ", orbit.Zs)
+"""
+B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
+orbit_dictionary = {"hei":"hei"}
+#compute_minimal_generating_set(B, 4)
+B1 = [0b11101, 0b01010, 0b10011, 0b00110]
+G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
+#compute_restricted_projector_stabilizer(B1, 5)
 
-if __name__ == '__main__':
-    # TODO does not run, need to make orbit_dictionary first
-    B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
-    orbit_dictionary = {"hei":"hei"}
-    #compute_minimal_generating_set(B, 4)
-    # B1 = [0b11101, 0b01010, 0b10011, 0b00110]
-    # G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
-    #compute_restricted_projector_stabilizer(B1, 5)
+stabilizer = Stabilizer(B=B, n=4, orbit_dictionary={})
+#stabilizer.check_if_orbit()
+stabilizer.compute_minimal_generating_sets()
+#stabilizer.compute_projector_stabilizers()
 
-    stabilizer = Stabilizer(B=B, n=4, orbit_dictionary={})
-    #stabilizer.check_if_orbit()
-    stabilizer.compute_minimal_generating_sets()
-    stabilizer.compute_projector_stabilizers()
-
-    # stabilizer2 = Stabilizer(B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
-    # stabilizer2.check_if_orbit()
-    # stabilizer2.compute_minimal_generating_sets()
-    # stabilizer2.compute_projector_stabilizers()
-    # print(stabilizer2.print_values())
-    
+stabilizer2 = Stabilizer(B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
+stabilizer2.check_if_orbit()
+stabilizer2.compute_minimal_generating_sets()
+stabilizer2.compute_projector_stabilizers()
+print(stabilizer2.print_values())
+"""
 
 
 
