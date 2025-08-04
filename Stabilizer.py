@@ -182,6 +182,10 @@ class Stabilizer:
                 k = len(minimal_generating_set)
                 projector = []
 
+                #if we have an edge case where there are no minimal generating sets because |B| = 2^n, then we just return the identity projector
+                if len(minimal_generating_set) == 0:
+                    orbit.Zs = [(1,0)]  # Identity projector
+                    return
                 signs, z_strings = zip(*minimal_generating_set)
                 signs = np.array(signs)
                 z_strings = np.array(z_strings)
