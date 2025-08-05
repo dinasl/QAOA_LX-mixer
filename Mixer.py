@@ -22,7 +22,7 @@ class Orbit:
         Zs (List[tuple[int, int]]): Projectors (Z operators). First element in the tuple is the signe (+1/-1) and the second element the operator (int representation).
         cost (int): Total cost (number of CNOTs required) of the orbit.
     """
-    Xs: Set[int] = field(default_factory=list)
+    Xs: List[int] = field(default_factory=list)
     Zs: List[Tuple[int, int]] = field(default_factory=list)
     cost:int = float('inf') # Total cost of the orbit, initialized to infinity.
 
