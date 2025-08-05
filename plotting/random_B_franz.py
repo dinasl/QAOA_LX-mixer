@@ -1,4 +1,5 @@
 from multiprocessing import Pool
+import multiprocessing
 
 #import tikzplotlib
 
@@ -25,8 +26,13 @@ from Mixer_Franz import MixerFranz
 
 # CONFIGURATION: Choose which mixers to run
 # Set to True to run that mixer, False to skip it
-RUN_FRANZ_MIXER = True    # Set to False to skip Franz mixer
+RUN_FRANZ_MIXER = False    # Set to False to skip Franz mixer
 RUN_LXMIXER = True        # Set to False to skip LXMixer
+
+# TIMEOUT CONFIGURATION: Adjust these if you experience hanging
+WORKER_TIMEOUT = 600      # Timeout per individual worker task (seconds) - increased from 300
+POOL_TIMEOUT = 1200       # Timeout for entire pool of workers (seconds) - increased from 600
+MAX_M_VALUE = 100         # Skip m values larger than this (safety for LXMixer)
 
 # You can also run only one mixer by setting one to False:
 # RUN_FRANZ_MIXER = True; RUN_LXMIXER = False   # Only Franz
@@ -230,15 +236,59 @@ def main(n, num_samples=100):
         traceback.print_exc()
         return
 
+    # Add checkpoint saving functionality
+    checkpoint_file = f"checkpoint_n{n}_franz{RUN_FRANZ_MIXER}_lx{RUN_LXMIXER}.pkl"
+    
+    def save_checkpoint(i, data):
+        """Save current progress to resume later if needed"""
+        try:
+            import pickle
+            checkpoint_data = {
+                'completed_index': i,
+                'n': n,
+                'franz_enabled': RUN_FRANZ_MIXER,
+                'lx_enabled': RUN_LXMIXER,
+                'data': data
+            }
+            with open(checkpoint_file, 'wb') as f:
+                pickle.dump(checkpoint_data, f)
+            print(f"Checkpoint saved at index {i}")
+        except Exception as e:
+            print(f"Warning: Could not save checkpoint: {e}")
+    
+    def load_checkpoint():
+        """Load previous progress if available"""
+        try:
+            import pickle
+            with open(checkpoint_file, 'rb') as f:
+                return pickle.load(f)
+        except FileNotFoundError:
+            return None
+        except Exception as e:
+            print(f"Warning: Could not load checkpoint: {e}")
+            return None
+
     # m = |B|
     m_list = list(range(2, 2**n + 1))
     
-    # # RESUME: Skip completed m values - change this number to resume from specific m
+    # Try to load checkpoint
+    checkpoint = load_checkpoint()
+    start_index = 0
+    if checkpoint:
+        print(f"Found checkpoint! Last completed index: {checkpoint['completed_index']}")
+        if checkpoint['n'] == n and checkpoint['franz_enabled'] == RUN_FRANZ_MIXER and checkpoint['lx_enabled'] == RUN_LXMIXER:
+            user_input = input("Resume from checkpoint? (Y/n): ")
+            if user_input.lower() != 'n':
+                start_index = checkpoint['completed_index'] + 1
+                print(f"Resuming from index {start_index} (m={m_list[start_index] if start_index < len(m_list) else 'END'})")
+        else:
+            print("Checkpoint configuration doesn't match current settings - starting fresh")
+    
+    # # MANUAL RESUME: Uncomment and modify this section to manually resume from a specific m value
     # start_from_m = 11  # CHANGE THIS: Set to the m value you want to resume from
     # try:
     #     start_index = m_list.index(start_from_m)
-    #     print(f"RESUMING from m={start_from_m} (skipping {start_index} completed values)")
-    #     m_list = m_list[start_index:]
+    #     print(f"MANUAL RESUME from m={start_from_m} (skipping {start_index} completed values)")
     # except ValueError:
     #     print(f"Error: m={start_from_m} not found in m_list")
     #     return
@@ -271,6 +321,42 @@ def main(n, num_samples=100):
     all_infinity_B_sets = []
 
     for i, m in enumerate(m_list):
+        # Skip completed indices if resuming
+        if i < start_index:
+            continue
+            
+        print(f"\nProcessing m={m} (|B|={m}) - {i+1}/{len(m_list)}")
+        print(f"Estimated remaining: {len(m_list) - i - 1} iterations")
+        
+        # Safety check for very large m values
+        if m > MAX_M_VALUE:
+            print(f"SKIPPING: |B|={m} exceeds MAX_M_VALUE={MAX_M_VALUE} (safety limit)")
+            # Set arrays to NaN for this index
+            min_cnots_franz[i] = np.nan
+            max_cnots_franz[i] = np.nan
+            mean_cnots_franz[i] = np.nan
+            var_cnots_franz[i] = np.nan
+            min_cnots_lxmixer[i] = np.nan
+            max_cnots_lxmixer[i] = np.nan
+            mean_cnots_lxmixer[i] = np.nan
+            var_cnots_lxmixer[i] = np.nan
+            min_times_franz[i] = np.nan
+            max_times_franz[i] = np.nan
+            mean_times_franz[i] = np.nan
+            var_times_franz[i] = np.nan
+            min_times_lxmixer[i] = np.nan
+            max_times_lxmixer[i] = np.nan
+            mean_times_lxmixer[i] = np.nan
+            var_times_lxmixer[i] = np.nan
+            continue
+            
+        if m > 16 and RUN_LXMIXER:
+            print(f"WARNING: |B|={m} is large for LXMixer and may take very long or cause memory issues!")
+            user_input = input("Continue with this m value? (y/N): ")
+            if user_input.lower() != 'y':
+                print("Skipping this m value...")
+                continue
+                
         print(f"\nProcessing m={m} (|B|={m}) - {i+1}/{len(m_list)}")
         global cnots_franz, cnots_lxmixer, times_franz, times_lxmixer, failed_B_sets, infinity_B_sets
         cnots_franz = []
@@ -280,25 +366,92 @@ def main(n, num_samples=100):
         failed_B_sets = []
         infinity_B_sets = []
         
+        # Use timeout to prevent hanging
+        # Use configured timeout values
+        
         pool = Pool()
         results = []
         worker_B_sets = []  # Store B sets for each worker
         
-        for j in range(num_samples):
-            B_strings, B_integers = worker.sample_B(m)
-            worker_B_sets.append((B_strings, B_integers))  # Store the B set
-            result = pool.apply_async(
-                worker.get_costs, args=(B_strings, B_integers), callback=saveResult
-            )
-            results.append(result)
-        pool.close()
-        pool.join()
+        try:
+            for j in range(num_samples):
+                B_strings, B_integers = worker.sample_B(m)
+                worker_B_sets.append((B_strings, B_integers))  # Store the B set
+                result = pool.apply_async(
+                    worker.get_costs, args=(B_strings, B_integers), callback=saveResult
+                )
+                results.append(result)
+            
+            pool.close()
+            
+            # Use a different approach for timeout - check if workers complete within timeout
+            print(f"Waiting for {num_samples} workers to complete (timeout: {POOL_TIMEOUT}s)...")
+            
+            start_time = time.time()
+            timeout_reached = False
+            
+            # Wait for all results with timeout
+            while time.time() - start_time < POOL_TIMEOUT:
+                # Check if all results are ready
+                all_ready = all(result.ready() for result in results)
+                if all_ready:
+                    print("All workers completed successfully!")
+                    break
+                    
+                # Print progress every 30 seconds
+                elapsed = time.time() - start_time
+                if elapsed > 0 and int(elapsed) % 30 == 0:
+                    completed = sum(1 for result in results if result.ready())
+                    print(f"Progress: {completed}/{num_samples} workers completed after {elapsed:.0f}s")
+                    
+                time.sleep(1)  # Check every second
+            else:
+                # Timeout reached
+                timeout_reached = True
+                completed = sum(1 for result in results if result.ready())
+                print(f"WARNING: Pool timeout reached! Only {completed}/{num_samples} workers completed in {POOL_TIMEOUT}s")
+                print("Terminating remaining workers...")
+            
+            if timeout_reached:
+                pool.terminate()
+            
+            pool.join()  # This will wait for termination to complete
+                
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt detected - terminating pool...")
+            pool.terminate()
+            pool.join()
+            raise
+        except Exception as e:
+            print(f"Exception in pool management: {e}")
+            pool.terminate()
+            pool.join()
+            raise
         
-        # Check for exceptions in the results
+        # Check for exceptions in the results with timeout
         failed_count = 0
+        timeout_count = 0
         for j, result in enumerate(results):
             try:
-                result.get()  # This will raise any exception that occurred
+                # Use timeout on individual results to catch hanging workers
+                result.get(timeout=WORKER_TIMEOUT)  # This will raise any exception that occurred
+            except multiprocessing.TimeoutError:
+                print(f"Worker {j} timed out after {WORKER_TIMEOUT} seconds")
+                timeout_count += 1
+                failed_count += 1
+                
+                # For timed out workers, we have the actual B set that caused the timeout
+                failed_B_strings, failed_B_integers = worker_B_sets[j]
+                print(f"Worker {j} timed out with B set: {failed_B_strings}")
+                
+                # Create a failed B info entry
+                failed_B_info = {
+                    'B_strings': failed_B_strings,
+                    'B_integers': failed_B_integers,
+                    'error': f'Worker timeout after {WORKER_TIMEOUT} seconds'
+                }
+                all_failed_B_sets.append((m, failed_B_info))
+                
             except Exception as e:
                 print(f"Exception in worker {j}: {e}")
                 failed_count += 1
@@ -318,7 +471,7 @@ def main(n, num_samples=100):
                 all_failed_B_sets.append((m, failed_B_info))
         
         print(f"Collected {len(cnots_franz)} Franz results and {len(cnots_lxmixer)} LXMixer results for m={m}")
-        print(f"Failed: {failed_count}/{num_samples}")
+        print(f"Failed: {failed_count}/{num_samples} (timeouts: {timeout_count})")
         
         # Debug: Show what values we actually collected
         print(f"Franz results: {cnots_franz}")
@@ -404,6 +557,24 @@ def main(n, num_samples=100):
         var_times_lxmixer[i] = np.var(times_lxmixer)
 
         print(int(100 * (i + 1) / len(m_list)), "%")
+        
+        # Save checkpoint after each m value (in case of crashes/hangs)
+        checkpoint_data = {
+            'mean_cnots_franz': mean_cnots_franz[:i+1],
+            'mean_cnots_lxmixer': mean_cnots_lxmixer[:i+1],
+            'var_cnots_franz': var_cnots_franz[:i+1],
+            'var_cnots_lxmixer': var_cnots_lxmixer[:i+1],
+            'min_cnots_franz': min_cnots_franz[:i+1],
+            'min_cnots_lxmixer': min_cnots_lxmixer[:i+1],
+            'max_cnots_franz': max_cnots_franz[:i+1],
+            'max_cnots_lxmixer': max_cnots_lxmixer[:i+1],
+            'mean_times_franz': mean_times_franz[:i+1],
+            'mean_times_lxmixer': mean_times_lxmixer[:i+1],
+            'all_failed_B_sets': all_failed_B_sets,
+            'all_infinity_B_sets': all_infinity_B_sets,
+            'm_list_completed': m_list[:i+1]
+        }
+        save_checkpoint(i, checkpoint_data)
 
     # Print final data summary
     print(f"\nFinal data summary:")
@@ -742,5 +913,5 @@ if __name__ == "__main__":
     #    for n in [3]:
     #        main(n)
     
-    for n in [3]:
+    for n in [5]:
         main(n)
