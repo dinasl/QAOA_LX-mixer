@@ -6,11 +6,10 @@ import math
 
 from Stabilizer import *
 from utils import is_connected, is_power_of_two, find_best_cost
-from plot_mixers import draw_best_graphs, draw_mixer_graph, draw_family_of_valid_graphs, X0
+from plotting.plot_mixers import draw_best_graphs, draw_mixer_graph, draw_family_of_valid_graphs, X0
 
 # TODO: Implement method for directed graphs (digraph=True, only for visual representation),
 # method for reduced graphs (reduced=True) and blacklist and whitelist methods.
-# TODO: Consider using numpy arrays for better performance.
 
 @dataclass
 class Orbit:
