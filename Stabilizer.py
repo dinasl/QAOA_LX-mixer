@@ -110,19 +110,19 @@ class Stabilizer:
                     #TODO what happens if there is only 1 anti-commuting stabilizer? -> just add it to the list of commuting stabilizers?
                     I_d_2_Z = [] 
                 
-                print("I_c: ", I_c)
-                print("I_d: ", I_d)
+                # print("I_c: ", I_c)
+                # print("I_d: ", I_d)
                 #creates a list of tuples (+-1, Z-string) for commuting pairs  
                 I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
-                print("I_c_Z: ", I_c_Z)
-                print("I_d_2_Z: ", I_d_2_Z)
+                # print("I_c_Z: ", I_c_Z)
+                # print("I_d_2_Z: ", I_d_2_Z)
 
                 G_new = I_c_Z + I_d_2_Z
                 G0 = G_new
                 print("G0: ", G0)
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = G0 #removed list from list(G0) since it is already a list of tuples
-            
+            print("Minimal generating set: ", final_minimal_generating_set_1_orbit)
             self.orbit_dictionary[nodes].Zs = final_minimal_generating_set_1_orbit
 
     def compute_projector_stabilizers(self, restricted = False):
@@ -181,6 +181,8 @@ class Stabilizer:
                 if len(minimal_generating_set) == 0:
                     orbit.Zs = [(1,0)]  # Identity projector
                     return
+                # if self.B == 2**self.n:
+                #     print("This is at the edge case, min.gen.set is: ", minimal_generating_set)
                 signs, z_strings = zip(*minimal_generating_set)
                 signs = np.array(signs)
                 z_strings = np.array(z_strings)
