@@ -47,7 +47,6 @@ class LXMixer:
         family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int) to edges (tuples of node indices) connected by the operator X_ij : (i,j).
         node_connectors (Dict[Dict[int, int]]): Maps for each node, another node from B and the logical X operator that connects them i : j : X_ij.
         orbits (Dict[Tuple[int,...], Orbit]): A dictionary mapping node tuples to Orbit objects, containing the logical X operators, the Z operators representing the orbit and their total cost.
-        S (Stabilizer): Stabilizer object that computes the orbit's respective projectors.
         
         best_Xs (List[List[List[int]]]): List(s) of lists of logical X operators that form the best mixers.
         best_Zs (List[List[List[Tuple[int, int]]]]): List(s) of lists of projectors (Z operators) that form the best mixers.
@@ -213,7 +212,7 @@ class LXMixer:
             return
         
         # If there are multiple orbits, we must at least take a combination of two orbits to form a connected mixer.
-        N = range(2, self.nB) # Range of the number of orbits to combine. Goes from 2 to |B|-1.
+        N = range(2, self.nB) # Range of the number of orbits to combine. Goes from 2 to |B|-1 (worst-case is a chain).
         for n in N:
             for combination in tqdm(combinations(self.orbits.keys(), n), desc=f"n = {n}"): # TODO: Makes duplicates?
                 if len({node for nodes in combination for node in nodes}) != self.nB: # If the combination does not cover all nodes in B, skip it.
@@ -267,7 +266,7 @@ if __name__ == '__main__':
     
     # Initialize the LXMixer with the feasible set B and number of logical qubits nL.
     # lxmixer = LXMixer(B, 3)
-    lxmixer = LXMixer(B, 4, greatest_orbit_heuristic=False)
+    lxmixer = LXMixer(B, 4, greatest_orbit_heuristic=True)
     # lxmixer = LXMixer(B, 5, greatest_orbit_heuristic=False)
 
     print("\nComputing family of valid graphs...")
