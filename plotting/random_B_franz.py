@@ -9,10 +9,17 @@ from matplotlib import pyplot as plt
 import numpy as np
 from random import sample
 import time
+import sys
+import os
+
+# Add parent directory to path to import Mixer
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+mixer_path = os.path.join(parent_dir, 'Mixer.py')
+sys.path.append(parent_dir)
+
 from Mixer import *
 
 # Importing necessary classes from Mixer module
-import sys
 sys.path.append(r"C:\Users\sanne\LogicalXMixer")
 from Mixer_Franz import MixerFranz
 
