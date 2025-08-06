@@ -105,8 +105,11 @@ class Stabilizer:
                 I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
 
                 G_new = I_c_Z + I_d_2_Z
+                if len(G_new) != (len(G0)-1):
+                    print("WARNING: G_new is not the same length as G0 - 1, this should not happen")
+                    print("G_new: ", G_new)
+                    print("G0: ", G0)
                 G0 = G_new
-            
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = G0 #removed list from list(G0) since it is already a list of tuples
             
