@@ -105,7 +105,7 @@ class Stabilizer:
                     elements_included = len(G0_elements) - len(I_c) - 1
                 
                     I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
-                    I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
+                    I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]^G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
                 else:
                     #TODO what happens if there is only 1 anti-commuting stabilizer? -> just add it to the list of commuting stabilizers?
                     I_d_2_Z = [] 
