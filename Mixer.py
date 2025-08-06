@@ -219,6 +219,10 @@ class LXMixer:
             best_Xs, best_cost = find_best_cost(orbit.Xs, orbit.Zs) # Finds the best combination of log2(# of nodes) logical X operators and projectors that yield the lowest cost.
             orbit.Xs = best_Xs
             orbit.cost = best_cost
+            for suborbit in orbit.suborbits.values():
+                best_Xs, best_cost = find_best_cost(suborbit.Xs, orbit.Zs)
+                suborbit.Xs = best_Xs
+                suborbit.cost = best_cost
         
     def find_best_mixer(self):
         """ 
@@ -317,9 +321,9 @@ if __name__ == '__main__':
 
     print("\nOrbits (without projectors and costs):")
     for nodes, orbit in lxmixer.orbits.items():
-        print(f"{nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
+        print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
         for suborbit_nodes, suborbit in orbit.suborbits.items():
-            print(f"  {suborbit_nodes} : [{', '.join(f'{X:0{lxmixer.nL}b}' for X in suborbit.Xs)}]")
+            print(f"  {suborbit_nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in suborbit.Xs)}]")
     # """
     
     S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits) # Initialize the Stabilizer object with the feasible set B, number of logical qubits nL and orbits dictionary.
@@ -347,8 +351,9 @@ if __name__ == '__main__':
     
     print("\nOrbits with projectors and costs:")
     for nodes, orbit in lxmixer.orbits.items():
-        print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}], Zs = [{', '.join(f'{"+" if Z[0] == 1 else "-"}{Z[1]:0{lxmixer.nL}b}' for Z in orbit.Zs if len(Z) == 2)}]")
-        print(f"cost = {orbit.cost}")
+        print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}], Zs = [{', '.join(f'{"+" if Z[0] == 1 else "-"}{Z[1]:0{lxmixer.nL}b}' for Z in orbit.Zs if len(Z) == 2)}], cost = {orbit.cost}")
+        for suborbit_nodes, suborbit in orbit.suborbits.items():
+            print(f"  {suborbit_nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in suborbit.Xs)}], cost = {suborbit.cost}")
     
     print("\nFinding best mixer...")
     start_time = time.time()
