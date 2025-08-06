@@ -255,16 +255,9 @@ if __name__ == '__main__':
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100] # nB = 6
     B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010] # nB = 7
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
-<<<<<<< HEAD
-    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010] # nB = 7
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
-    #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
-    B = [0,1,2,3,4,5,6,7]
-=======
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
     #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
     
->>>>>>> 043a80bb16f8334b8337414bde5fa35f07adfc49
     # nL = 5
     # B = [0b00001, 0b00010, 0b00100,
     #     0b01000, 0b10000, 0b00011,
@@ -277,15 +270,9 @@ if __name__ == '__main__':
     print(f"\nB = {[f"{b:0{len(bin(max(B)))-2}b}" for b in B]}") # Print B in binary format.
     
     # Initialize the LXMixer with the feasible set B and number of logical qubits nL.
-<<<<<<< HEAD
-    lxmixer = LXMixer(B, 3)
-    # lxmixer = LXMixer(B, 4)
-    # lxmixer = LXMixer(B, 5)
-=======
     # lxmixer = LXMixer(B, 3)
     lxmixer = LXMixer(B, 4, greatest_orbit_heuristic=True)
     # lxmixer = LXMixer(B, 5, greatest_orbit_heuristic=False)
->>>>>>> 043a80bb16f8334b8337414bde5fa35f07adfc49
 
     print("\nComputing family of valid graphs...")
     start_time = time.time()
