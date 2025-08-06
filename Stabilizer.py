@@ -176,6 +176,11 @@ class Stabilizer:
                 
                 minimal_generating_set = orbit.Zs
                 
+                # If |B| = 2^n, then we can just return the identity projector, TODO is this correct???
+                if len(minimal_generating_set) == 0:
+                    orbit.Zs = [(1, 0)]
+                    return
+                
                 #all possible combinations
                 k = len(minimal_generating_set)
                 projector = []

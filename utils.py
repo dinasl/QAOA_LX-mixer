@@ -99,6 +99,7 @@ def is_connected(orbits):
         bool: True if the orbits are connected, False otherwise.
     """
     # Short circuit evaluation
+    if len(orbits) == 1: return True # Return True if there is only one orbit (connecting all nodes)
     for orbit in orbits:
         if not any(set(orbit).intersection(set(other_orbit)) for other_orbit in orbits if other_orbit != orbit):
             return False

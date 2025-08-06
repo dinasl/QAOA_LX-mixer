@@ -1,8 +1,15 @@
-import sys
 import time
 import numpy as np
 from random import sample
 import itertools
+import sys
+import os
+
+# Add parent directory to path to import Mixer
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+mixer_path = os.path.join(parent_dir, 'Mixer.py')
+sys.path.append(parent_dir)
+
 from Mixer import *
 from Stabilizer import *
 
