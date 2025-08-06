@@ -12,6 +12,11 @@ from plotting.plot_mixers import draw_best_graphs, draw_mixer_graph, draw_family
 # TODO: Implement method for directed graphs (digraph=True, only for visual representation),
 # method for reduced graphs (reduced=True) and blacklist and whitelist methods.
 
+# TODO: Implement a method that divides the largest possible orbits (`greatest_orbit_heuristic=True`) into smaller orbits, but keeps their projectors.
+# Might yield a better cost than the brute-force method.
+# Idea: Change the `greatest_orbit_heuristic` (bool) parameter to a `method` parameter and choose between
+# # `largest_orbits`, `all_suborbits`, `all_suborbits_big_projectors `.
+
 @dataclass
 class Orbit:
     """
@@ -214,7 +219,7 @@ class LXMixer:
         # If there are multiple orbits, we must at least take a combination of two orbits to form a connected mixer.
         N = range(2, self.nB) # Range of the number of orbits to combine. Goes from 2 to |B|-1 (worst-case is a chain).
         for n in N:
-            for combination in tqdm(combinations(self.orbits.keys(), n), desc=f"n = {n}"): # TODO: Makes duplicates?
+            for combination in tqdm(combinations(self.orbits.keys(), n), desc=f"n = {n}"):
                 if len({node for nodes in combination for node in nodes}) != self.nB: # If the combination does not cover all nodes in B, skip it.
                     continue
                 if not is_connected(combination): # If the combination does not connect all nodes, skip it.
