@@ -30,10 +30,8 @@ from Mixer_Franz import MixerFranz
 RUN_FRANZ_MIXER = False    # Set to False to skip Franz mixer
 RUN_LXMIXER = True        # Set to False to skip LXMixer
 
-# CONFIGURATION: Batch processing to prevent resource exhaustion
-USE_BATCH_PROCESSING = True  # Set to False to use single large pool (original behavior)
-BATCH_SIZE = 30             # Number of workers per batch (increased from 20 for better efficiency)
-USE_WARMUP = True           # Warm up process pool to reduce cold start effects
+# CONFIGURATION: Simple optimizations
+USE_SIMPLE_MONITORING = True  # Keep basic timing analysis without heavy overhead
 
 # You can also run only one mixer by setting one to False:
 # RUN_FRANZ_MIXER = True; RUN_LXMIXER = False   # Only Franz
@@ -225,7 +223,7 @@ def get_cpu_temperature():
     except:
         return None
 
-def main(n, num_samples=80):
+def main(n, num_samples=100):
     print("n=", n)
     print(f"Configuration: Franz Mixer={'ON' if RUN_FRANZ_MIXER else 'OFF'}, LXMixer={'ON' if RUN_LXMIXER else 'OFF'}")
     
@@ -249,39 +247,6 @@ def main(n, num_samples=80):
         import traceback
         traceback.print_exc()
         return
-
-    # Warm-up phase to reduce cold start effects
-    if USE_WARMUP and USE_BATCH_PROCESSING and num_samples > 10:
-        print("\nWarming up process pool...")
-        warmup_start = time.time()
-        
-        # Create a small warmup pool and run a few quick tasks
-        warmup_pool = Pool()
-        warmup_results = []
-        
-        for _ in range(3):  # 3 warmup tasks
-            warmup_B_strings, warmup_B_integers = worker.sample_B(2)  # Small B set for speed
-            result = warmup_pool.apply_async(
-                worker.get_costs, args=(warmup_B_strings, warmup_B_integers)
-            )
-            warmup_results.append(result)
-        
-        # Wait for warmup to complete
-        for result in warmup_results:
-            try:
-                result.get()
-            except:
-                pass  # Ignore warmup errors
-        
-        warmup_pool.close()
-        warmup_pool.join()
-        del warmup_pool
-        gc.collect()
-        
-        warmup_time = time.time() - warmup_start
-        print(f"Warmup completed in {warmup_time:.1f}s")
-    else:
-        print("Skipping warmup (disabled, single pool mode, or small batch)")
 
     # m = |B|
     m_list = list(range(2, 2**n + 1))
@@ -326,21 +291,11 @@ def main(n, num_samples=80):
     for i, m in enumerate(m_list):
         print(f"\nProcessing m={m} (|B|={m}) - {i+1}/{len(m_list)}")
         
-        # Monitor system resources before this m value
-        process = psutil.Process()
-        memory_before = process.memory_info().rss / 1024 / 1024  # MB
-        cpu_percent = psutil.cpu_percent(interval=1)
-        available_memory = psutil.virtual_memory().available / 1024 / 1024  # MB
-        cpu_temp = get_cpu_temperature()
-        
-        print(f"System resources before m={m}:")
-        print(f"  Process memory: {memory_before:.1f} MB")
-        print(f"  CPU usage: {cpu_percent:.1f}%")
-        print(f"  Available system memory: {available_memory:.1f} MB")
-        if cpu_temp:
-            print(f"  CPU temperature: {cpu_temp:.1f}°C")
-        else:
-            print(f"  CPU temperature: Not available")
+        # Lightweight resource monitoring (only if enabled)
+        if USE_SIMPLE_MONITORING:
+            process = psutil.Process()
+            memory_before = process.memory_info().rss / 1024 / 1024  # MB
+            print(f"Process memory: {memory_before:.1f} MB")
         
         # Force garbage collection before starting
         gc.collect()
@@ -356,84 +311,33 @@ def main(n, num_samples=80):
         # Time the entire batch processing
         batch_start_time = time.time()
         
-        # OPTION: Use smaller batch sizes to avoid resource exhaustion
-        # Process workers in smaller batches to prevent resource buildup
+        # Simple single pool processing (back to original, efficient method)
+        print(f"Processing all {num_samples} workers in single pool")
+        pool = Pool()
+        results = []
+        worker_B_sets = []  # Store B sets for each worker
         
-        if not USE_BATCH_PROCESSING or num_samples <= BATCH_SIZE:
-            # Process all at once (original method or small batch)
-            print(f"Processing all {num_samples} workers in single pool")
-            pool = Pool()
-            results = []
-            worker_B_sets = []  # Store B sets for each worker
-            
-            # Track individual worker timings
-            worker_start_times = []
-            
-            for j in range(num_samples):
+        # Track individual worker timings (only if monitoring enabled)
+        worker_start_times = []
+        
+        for j in range(num_samples):
+            if USE_SIMPLE_MONITORING:
                 worker_start = time.time()
                 worker_start_times.append(worker_start)
-                
-                B_strings, B_integers = worker.sample_B(m)
-                worker_B_sets.append((B_strings, B_integers))  # Store the B set
-                result = pool.apply_async(
-                    worker.get_costs, args=(B_strings, B_integers), callback=saveResult
-                )
-                results.append(result)
-                
-                # Print progress for last 20 workers to see timing patterns
-                if j >= num_samples - 20:
-                    print(f"  Started worker {j+1}/{num_samples} at {time.time() - batch_start_time:.1f}s")
             
-            pool.close()
-            
-            print(f"All {num_samples} workers started. Waiting for completion...")
-            join_start = time.time()
-            pool.join()
-            join_end = time.time()
-            
-        else:
-            # Large batch - process in smaller chunks
-            print(f"Processing {num_samples} workers in batches of {BATCH_SIZE}")
-            results = []
-            worker_B_sets = []
-            worker_start_times = []
-            
-            for batch_start in range(0, num_samples, BATCH_SIZE):
-                batch_end = min(batch_start + BATCH_SIZE, num_samples)
-                batch_num = batch_start // BATCH_SIZE + 1
-                total_batches = (num_samples + BATCH_SIZE - 1) // BATCH_SIZE
-                
-                print(f"  Processing batch {batch_num}/{total_batches} (workers {batch_start+1}-{batch_end})")
-                
-                # Create fresh pool for each batch
-                batch_pool = Pool()
-                batch_results = []
-                
-                for j in range(batch_start, batch_end):
-                    worker_start = time.time()
-                    worker_start_times.append(worker_start)
-                    
-                    B_strings, B_integers = worker.sample_B(m)
-                    worker_B_sets.append((B_strings, B_integers))
-                    result = batch_pool.apply_async(
-                        worker.get_costs, args=(B_strings, B_integers), callback=saveResult
-                    )
-                    batch_results.append(result)
-                    results.append(result)
-                
-                batch_pool.close()
-                batch_pool.join()
-                
-                # Force cleanup
-                del batch_pool
-                gc.collect()
-                
-                print(f"    Batch {batch_num} completed")
-            
-            join_start = batch_start_time  # Approximate since we did batches
-            join_end = time.time()
-            
-            print(f"All {num_samples} workers completed in batches")
+            B_strings, B_integers = worker.sample_B(m)
+            worker_B_sets.append((B_strings, B_integers))  # Store the B set
+            result = pool.apply_async(
+                worker.get_costs, args=(B_strings, B_integers), callback=saveResult
+            )
+            results.append(result)
+        
+        pool.close()
+        
+        print(f"All {num_samples} workers started. Waiting for completion...")
+        join_start = time.time()
+        pool.join()
+        join_end = time.time()
         
         batch_end_time = time.time()
         total_batch_time = batch_end_time - batch_start_time
@@ -441,20 +345,10 @@ def main(n, num_samples=80):
         
         print(f"Batch completed in {total_batch_time:.1f}s (join took {join_time:.1f}s)")
         
-        print(f"Batch completed in {total_batch_time:.1f}s (join took {join_time:.1f}s)")
-        
-        # Check system resources after completion
-        memory_after = process.memory_info().rss / 1024 / 1024  # MB
-        available_memory_after = psutil.virtual_memory().available / 1024 / 1024  # MB
-        cpu_temp_after = get_cpu_temperature()
-        
-        print(f"System resources after m={m}:")
-        print(f"  Process memory: {memory_after:.1f} MB (change: {memory_after - memory_before:+.1f} MB)")
-        print(f"  Available system memory: {available_memory_after:.1f} MB (change: {available_memory_after - available_memory:+.1f} MB)")
-        if cpu_temp and cpu_temp_after:
-            print(f"  CPU temperature: {cpu_temp_after:.1f}°C (change: {cpu_temp_after - cpu_temp:+.1f}°C)")
-        elif cpu_temp_after:
-            print(f"  CPU temperature: {cpu_temp_after:.1f}°C")
+        # Check system resources after completion (lightweight)
+        if USE_SIMPLE_MONITORING:
+            memory_after = process.memory_info().rss / 1024 / 1024  # MB
+            print(f"Process memory after: {memory_after:.1f} MB (change: {memory_after - memory_before:+.1f} MB)")
         
         # Check for exceptions in the results and track completion times
         failed_count = 0
@@ -463,12 +357,11 @@ def main(n, num_samples=80):
         for j, result in enumerate(results):
             try:
                 result.get()  # This will raise any exception that occurred
-                completion_time = time.time() - worker_start_times[j]
-                worker_completion_times.append(completion_time)
                 
-                # Log slow workers (especially the last ones)
-                if completion_time > 30 or j >= num_samples - 10:  # Log last 10 or slow ones
-                    print(f"  Worker {j+1}: {completion_time:.1f}s")
+                # Only track timing if monitoring is enabled and we have start times
+                if USE_SIMPLE_MONITORING and j < len(worker_start_times):
+                    completion_time = time.time() - worker_start_times[j]
+                    worker_completion_times.append(completion_time)
                     
             except Exception as e:
                 print(f"Exception in worker {j}: {e}")
@@ -488,45 +381,28 @@ def main(n, num_samples=80):
                 }
                 all_failed_B_sets.append((m, failed_B_info))
         
-        # Analyze worker timing patterns
-        if worker_completion_times:
+        # Analyze worker timing patterns (only if monitoring enabled and we have data)
+        if USE_SIMPLE_MONITORING and worker_completion_times and len(worker_completion_times) >= 10:
             avg_time = np.mean(worker_completion_times)
             std_time = np.std(worker_completion_times)
             
-            # Check if last workers are significantly slower
+            # Simple analysis: first vs last workers
             if len(worker_completion_times) >= 20:
                 first_10_avg = np.mean(worker_completion_times[:10])
                 last_10_avg = np.mean(worker_completion_times[-10:])
-                middle_avg = np.mean(worker_completion_times[10:-10]) if len(worker_completion_times) > 20 else avg_time
                 
                 print(f"Worker timing analysis:")
                 print(f"  First 10 workers avg: {first_10_avg:.1f}s")
-                print(f"  Middle workers avg: {middle_avg:.1f}s")
                 print(f"  Last 10 workers avg: {last_10_avg:.1f}s")
                 print(f"  Overall avg: {avg_time:.1f}s ± {std_time:.1f}s")
                 
-                # Detect different patterns
+                # Simple interpretation
                 if last_10_avg > first_10_avg * 1.5:
-                    print(f"  ⚠️  WARNING: Last 10 workers are {last_10_avg/first_10_avg:.1f}x slower! (Resource exhaustion)")
-                elif first_10_avg > last_10_avg * 1.5:
-                    print(f"  ✅ INFO: First 10 workers are {first_10_avg/last_10_avg:.1f}x slower (Cold start effect - this is normal)")
-                    if first_10_avg > middle_avg * 1.3:
-                        print(f"  💡 TIP: Consider enabling warmup or increasing batch size to reduce startup overhead")
+                    print(f"  ⚠️  WARNING: Resource exhaustion detected (last workers {last_10_avg/first_10_avg:.1f}x slower)")
+                elif first_10_avg > last_10_avg * 1.3:
+                    print(f"  ✅ INFO: Normal startup effect (first workers {first_10_avg/last_10_avg:.1f}x slower)")
                 else:
-                    print(f"  ✅ GOOD: Worker timings are relatively consistent")
-            
-            elif len(worker_completion_times) >= 10:
-                # For smaller batches, just show first vs last 5
-                first_5_avg = np.mean(worker_completion_times[:5])
-                last_5_avg = np.mean(worker_completion_times[-5:])
-                
-                print(f"Worker timing analysis (small batch):")
-                print(f"  First 5 workers avg: {first_5_avg:.1f}s")
-                print(f"  Last 5 workers avg: {last_5_avg:.1f}s")
-                print(f"  Overall avg: {avg_time:.1f}s ± {std_time:.1f}s")
-                
-                if first_5_avg > last_5_avg * 1.5:
-                    print(f"  ✅ INFO: Cold start effect detected (first workers {first_5_avg/last_5_avg:.1f}x slower)")
+                    print(f"  ✅ GOOD: Consistent worker timing")
         
         print(f"Collected {len(cnots_franz)} Franz results and {len(cnots_lxmixer)} LXMixer results for m={m}")
         print(f"Failed: {failed_count}/{num_samples}")
