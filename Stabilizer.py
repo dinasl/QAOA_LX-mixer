@@ -95,7 +95,6 @@ class Stabilizer:
                 if len(I_d) > 1: #To be able to combine anti-commuting stabilizer, there needs to be at least 2 anti-commuting stabilizers
                     elements_included = len(G0_elements) - len(I_c) - 1
                 
-                
                     I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
                     I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]^G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
                 else:
