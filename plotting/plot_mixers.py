@@ -86,7 +86,7 @@ class Plotter:
                 side = 0
                 for neighbor in nodes:
                     side += 1
-                    if node < neighbor and (node, neighbor) in self.LX.family_of_valid_graphs[X]:
+                    if (node, neighbor) in self.LX.family_of_valid_graphs[X]:
                         if side%2 == 0:
                             y0 = self.LX.nB - node
                             y1 = self.LX.nB - neighbor
@@ -133,7 +133,7 @@ class Plotter:
         orbit_labels = [] # Labels for the legend.
         for color_n, nodes in enumerate(combination):
             orbit_labels.append(fr"$\langle${", ".join(f"${pauli_int_to_str(X, self.LX.nL)}$"for X in Xs[color_n])}$\rangle$") # Orbit label <X_1, ..., X_l>.
-            self.draw_orbit(ax, nodes, Xs[color_n], colors[color_n], r+color_n*0.005, lw) # Draw the orbit with the corresponding color.
+            self.draw_orbit(ax, nodes, Xs[color_n], colors[color_n], r+color_n*0.02, lw) # Draw the orbit with the corresponding color.
                         
         handles = [plt.Line2D([0], [0],
                         linestyle="-",
@@ -157,6 +157,8 @@ class Plotter:
         if not isinstance(ax, (list, np.ndarray)):  # Ensure ax is iterable, even if there's only one subplot/best solution.
             ax = [ax]
         for plot_n, combination in enumerate(self.LX.best_combinations):
+            if self.LX.method == "semi_restricted_suborbits":
+                combination = tuple(tuple(node for edge in combo for node in edge) for combo in combination)
             self.draw_mixer_graph(ax[plot_n], combination, self.LX.best_Xs[plot_n], r=r, lw=lw, cmap=cmap) # Draw the mixer graph for each best combination.
 
         plt.tight_layout()
