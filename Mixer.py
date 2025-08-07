@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Set
 from dataclasses import dataclass, field
-from itertools import combinations, product
+from itertools import combinations, product, islice
 import math
 from tqdm import tqdm
 
-from Stabilizer import *
-from utils import is_connected, is_power_of_two, find_best_cost, pauli_int_to_str
+import numpy as np
+from functools import reduce
+from utils import is_connected, is_power_of_two, find_best_cost, pauli_int_to_str, parity
 from plotting.plot_mixers import Plotter
 
 # TODO: Implement the "semi_restricted_suborbits" method.
@@ -214,7 +215,7 @@ class LXMixer:
                 I_c = []
                 I_d = []
                 for index, j in enumerate(commutation_string):      #iterates over the elements (binary strings)
-                    parity_of_string = utils.parity(j)                    #checks the parity of each string
+                    parity_of_string = parity(j)                    #checks the parity of each string
                     if parity_of_string == 1:
                         I_c.append(index) #appends the position of the commuting string
                     else:
@@ -224,7 +225,7 @@ class LXMixer:
                 if len(I_d) > 1: #To be able to combine anti-commuting stabilizer, there needs to be at least 2 anti-commuting stabilizers
                     elements_included = len(G0_elements) - len(I_c) - 1
                 
-                    I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
+                    I_d_2 = list(islice(combinations(I_d, 2), elements_included))
                     I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]^G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
                 else:
                     # If there are 0 or 1 anti-commuting stabilizers, we just take the commuting ones
@@ -267,7 +268,7 @@ class LXMixer:
             z_strings = np.array(z_strings)
             
             # Get all binary combinations (2^k × k)
-            all_choices = np.array(list(itertools.product([0, 1], repeat=k)))  # shape (2^k, k)
+            all_choices = np.array(list(product([0, 1], repeat=k)))  # shape (2^k, k)
 
             for choice in all_choices:
                 # Combine signs of selected generators
