@@ -1,5 +1,4 @@
 import math
-import networkx as nx
 from itertools import combinations
 from functools import reduce
 import operator
@@ -105,38 +104,6 @@ def is_connected(orbits):
             return False
     return True
 
-def split_into_suborbits(family_of_valid_graphs, operators, nodes = None):
-    """
-    Splits a set of nodes into suborbits based on the provided operators and family of valid graphs.
-
-    Args:
-        family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int representations) to edges (tuples of node indices) connected by the operator. 
-        operators (list): A list of logical X operators (int representations) that makes up the suborbits.
-
-    Returns:
-        List[set()]: A list of suborbits in sets with the nodes that are connected by the operators. 
-    """
-    suborbit_size = len(operators) + 1
-    
-    # Finds how many X operators are needed to cover the suborbit
-    least_number_of_operators = int(math.log2(suborbit_size))
-
-    all_edges = []
-
-    # Iterates through needed number of operators
-    for operator in operators[:least_number_of_operators]:
-        list_of_edges = family_of_valid_graphs[operator] #TODO can these nodes in list of edges be outside the nodes for the orbit?
-        # Only include edges where both nodes are in the specified nodes set
-        all_edges += [edge for edge in list_of_edges if all(node in nodes for node in edge)]  
-        #all_edges += list_of_edges TODO option 2: could it be more efficeent to filter out solutions later?
-    
-    G = nx.Graph()
-    G.add_edges_from(all_edges)
-
-    suborbits = list(nx.connected_components(G))
-    #suborbits = [suborbit for suborbit in nx.connected_components(G) if len(suborbit) == suborbit_size] TODO option 2
-
-    return suborbits
 
 def find_best_cost(Xs, Zs_operators):
     """
