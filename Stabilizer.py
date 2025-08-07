@@ -3,7 +3,6 @@ import itertools
 import utils
 from functools import reduce
 from sympy import Matrix, GF
-import math
 
 class Stabilizer:
     def __init__(self, B, n, orbit_dictionary):
@@ -24,38 +23,6 @@ class Stabilizer:
         self.n = n
         self.orbit_dictionary = orbit_dictionary
 
-    
-    #helping function to test the code before adding the find_orbit_function
-    def print_values(self):
-        return "orbits: " + str(self.orbits) + "\nMin gen set: " + str(self.minimal_generating_sets) + "\nProjectors: " + str(self.projectors)
-
-    def check_if_orbit(self):
-        """
-        Checks if the set B is an orbit of a stabilizer group.
-
-        Args:
-            B (list[int]): Feasible set of bitstrings (int representations) from the computational basis. 
-            
-        Returns:
-            bool: True if B is an orbit of a stabilizer group, False otherwise.
-        """
-        #This loop finds if there is an orbit when B=2^n states, iterates over all the possible X's and states, brute force
-        #not going to be necessary method
-        for B in self.B:
-            B_set = set(B)
-            tried_X = set()
-            for i in range(len(B)-1):
-                X_1 = B[i]^B[i+1] #making X_1 = z1 ^ z2
-                if X_1 in tried_X:
-                    continue
-                tried_X.add(X_1)
-                    
-                #checks if it maps all states to another
-                if not all((X_1 ^ state) in B_set for state in B):
-                    self.orbits.append([None])
-                    break
-            self.orbits.append(list(tried_X))
-    
     def compute_minimal_generating_sets(self):
         """
         Computes the minimal generating set of a stabilizer group that contains the orbit B.
@@ -198,39 +165,3 @@ class Stabilizer:
     
                 # Updating so that we disregard the minimal generating sets and only keep the projectors 
                 orbit.Zs = projector #changed to projector from projectors
-
-                # print("Projector for a given orbit: ", orbit.Zs)
-"""
-B = [0b1011, 0b1100, 0b0111, 0b0000, 0b1110, 0b1001, 0b0010, 0b0101]
-orbit_dictionary = {"hei":"hei"}
-#compute_minimal_generating_set(B, 4)
-B1 = [0b11101, 0b01010, 0b10011, 0b00110]
-G = [(-1, 0b00010), (-1, 0b00001), (-1, 0b11000), (1, 0b01100)]
-#compute_restricted_projector_stabilizer(B1, 5)
-
-stabilizer = Stabilizer(B=B, n=4, orbit_dictionary={})
-#stabilizer.check_if_orbit()
-stabilizer.compute_minimal_generating_sets()
-#stabilizer.compute_projector_stabilizers()
-
-stabilizer2 = Stabilizer(B=[[0b11000, 0b00100, 0b01101, 0b10001]], n=5)
-stabilizer2.check_if_orbit()
-stabilizer2.compute_minimal_generating_sets()
-stabilizer2.compute_projector_stabilizers()
-print(stabilizer2.print_values())
-"""
-
-
-
-    
-#def compute_restricted_projector_linalg(stabilizer_group, B):
-"""
-    Computes the restricted projector using linear algebra approach.
-    
-    Args:
-        stabilizer_group (list[int]): List of Pauli strings (int representation) that form the stabilizer group.
-        B (list[int]): Feasible set of bitstrings (int representations) from the computational basis.
-    
-    Returns:
-        ??? : The restricted projector in the form of a (???, vector) or other suitable representation.
-"""
