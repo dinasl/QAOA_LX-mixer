@@ -256,10 +256,10 @@ class Worker:
                 
                 results[method_key] = best_cost
                 timing_results[timing_key] = end_time - start_time
-                print(f"{method.capitalize()} - optimal cost: {best_cost}, time: {timing_results[timing_key]:.4f}s")
+                print(f"{method.replace("_", " ").capitalize()} - optimal cost: {best_cost}, time: {timing_results[timing_key]:.4f}s")
                 
             except Exception as e:
-                print(f"Error with {method.capitalize()}: {e}")
+                print(f"Error with {method.replace("_", " ").capitalize()}: {e}")
                 failed_B_info = {
                     'B_strings': B_strings,
                     'B_integers': B_integers,
@@ -276,7 +276,7 @@ class Worker:
         # Print summary for all methods
         summary_parts = [f"Original: {results['original_lxmixer']}"]
         for method in self.lxmixer_methods:
-            summary_parts.append(f"{method.capitalize()}: {results[f'lxmixer_{method}']}")
+            summary_parts.append(f"{method.replace("_", " ").capitalize()}: {results[f'lxmixer_{method}']}")
         print(", ".join(summary_parts))
         
         return (*[results.get(key, 0) for key in ['original_lxmixer'] + [f'lxmixer_{m}' for m in self.lxmixer_methods]], 
@@ -504,7 +504,7 @@ def main(n, num_samples=100):
         # Debug: Show what values we actually collected
         print(f"Original results: {cnots_original_lxmixer}")
         for method, results in cnots_lxmixer_methods.items():
-            print(f"{method.capitalize()} results: {results}")
+            print(f"{method.replace("_", " ").capitalize()} results: {results}")
         
         # Store failed B sets for this m value
         if failed_B_sets:
@@ -522,7 +522,7 @@ def main(n, num_samples=100):
                             'B_strings': B_strings,
                             'B_integers': B_integers,
                             'method': method,
-                            'error': f'LXMixer {method.capitalize()} returned infinity (no exception thrown)'
+                            'error': f'LXMixer {method.replace("_", " ").capitalize()} returned infinity (no exception thrown)'
                         }
                         infinity_B_sets.append(infinity_B_info)
         
@@ -566,12 +566,12 @@ def main(n, num_samples=100):
         # Calculate statistics for each LXMixer method
         for method in lxmixer_methods:
             method_results = cnots_lxmixer_methods[method]
-            print(f"{method.capitalize()} results for m={m}: {method_results}")
+            print(f"{method.replace("_", " ").capitalize()} results for m={m}: {method_results}")
             finite_results = [x for x in method_results if np.isfinite(x)]
-            print(f"{method.capitalize()} finite values: {finite_results}")
+            print(f"{method.replace("_", " ").capitalize()} finite values: {finite_results}")
             
             if len(finite_results) == 0:
-                print(f"All {method.capitalize()} values are infinite/NaN for m={m}")
+                print(f"All {method.replace("_", " ").capitalize()} values are infinite/NaN for m={m}")
                 min_cnots_lxmixer_methods[method][i] = np.nan
                 max_cnots_lxmixer_methods[method][i] = np.nan
                 mean_cnots_lxmixer_methods[method][i] = np.nan
@@ -635,9 +635,9 @@ def main(n, num_samples=100):
     
     if lxmixer_methods:
         for method in lxmixer_methods:
-            print(f"{method.capitalize()} means: {mean_cnots_lxmixer_methods[method]}")
-            print(f"{method.capitalize()} time means: {mean_times_lxmixer_methods[method]}")
-            print(f"{method.capitalize()} has {np.sum(~np.isnan(mean_cnots_lxmixer_methods[method]))} valid values")
+            print(f"{method.replace("_", " ").capitalize()} means: {mean_cnots_lxmixer_methods[method]}")
+            print(f"{method.replace("_", " ").capitalize()} time means: {mean_times_lxmixer_methods[method]}")
+            print(f"{method.replace("_", " ").capitalize()} has {np.sum(~np.isnan(mean_cnots_lxmixer_methods[method]))} valid values")
     else:
         print("LXMixer was disabled")
 
@@ -647,7 +647,7 @@ def main(n, num_samples=100):
         print(f"Original infinite values: {np.sum(np.isinf(mean_cnots_original_lxmixer))}")
     if lxmixer_methods:
         for method in lxmixer_methods:
-            print(f"{method.capitalize()} infinite values: {np.sum(np.isinf(mean_cnots_lxmixer_methods[method]))}")
+            print(f"{method.replace("_", " ").capitalize()} infinite values: {np.sum(np.isinf(mean_cnots_lxmixer_methods[method]))}")
     
     # Check each m value individually
     for i, m in enumerate(m_list):
@@ -660,7 +660,7 @@ def main(n, num_samples=100):
         # Add each LXMixer method individually
         for method in lxmixer_methods:
             method_val = mean_cnots_lxmixer_methods[method][i]
-            debug_parts.append(f"{method.capitalize()}={method_val}")
+            debug_parts.append(f"{method.replace("_", " ").capitalize()}={method_val}")
         
         if debug_parts:
             print(f"m={m}: {', '.join(debug_parts)}")
@@ -759,14 +759,14 @@ def main(n, num_samples=100):
         method_min_valid = min_cnots_lxmixer_methods[method][valid_indices]
         method_max_valid = max_cnots_lxmixer_methods[method][valid_indices]
         
-        ax1.plot(m_list_valid, method_mean_valid, f"{marker}-", color=color, label=f"{method.capitalize()} (mean)")
+        ax1.plot(m_list_valid, method_mean_valid, f"{marker}-", color=color, label=f"{method.replace("_", " ").capitalize()} (mean)")
         ax1.fill_between(
             m_list_valid,
             method_mean_valid - np.sqrt(method_var_valid),
             method_mean_valid + np.sqrt(method_var_valid),
             color=color,
             alpha=0.35,
-            label=f"{method.capitalize()} (1σ)"
+            label=f"{method.replace("_", " ").capitalize()} (1σ)"
         )
         ax1.plot(m_list_valid, method_min_valid, ":", color=color, alpha=0.7)
         ax1.plot(m_list_valid, method_max_valid, ":", color=color, alpha=0.7)
@@ -783,7 +783,7 @@ def main(n, num_samples=100):
         ax1.set_title(f"Original CNOT Cost (n={n})")
     else:
         method_names = ", ".join(lxmixer_methods)
-        ax1.set_title(f"{method_names.capitalize()} CNOT Cost () (n={n})")
+        ax1.set_title(f"{method_names.replace("_", " ").capitalize()} CNOT Cost () (n={n})")
     ax1.grid()
 
     # Plot execution times (right subplot)
@@ -810,14 +810,14 @@ def main(n, num_samples=100):
         method_min_times_valid = min_times_lxmixer_methods[method][valid_indices]
         method_max_times_valid = max_times_lxmixer_methods[method][valid_indices]
         
-        ax2.plot(m_list_valid, method_mean_times_valid, f"{marker}-", color=color, label=f"{method.capitalize()} (mean)")
+        ax2.plot(m_list_valid, method_mean_times_valid, f"{marker}-", color=color, label=f"{method.replace("_", " ").capitalize()} (mean)")
         ax2.fill_between(
             m_list_valid,
             method_mean_times_valid - np.sqrt(method_var_times_valid),
             method_mean_times_valid + np.sqrt(method_var_times_valid),
             color=color,
             alpha=0.35,
-            label=f"{method.capitalize()} (1σ)"
+            label=f"{method.replace("_", " ").capitalize()} (1σ)"
         )
         ax2.plot(m_list_valid, method_min_times_valid, ":", color=color, alpha=0.7)
         ax2.plot(m_list_valid, method_max_times_valid, ":", color=color, alpha=0.7)
@@ -834,7 +834,7 @@ def main(n, num_samples=100):
         ax2.set_title(f"Original Execution Time (n={n})")
     else:
         method_names = ", ".join(lxmixer_methods)
-        ax2.set_title(f"{method_names.capitalize()} Execution Time (n={n})")
+        ax2.set_title(f"{method_names.replace("_", " ").capitalize()} Execution Time (n={n})")
     ax2.grid()
 
     plt.tight_layout()
@@ -853,14 +853,14 @@ def main(n, num_samples=100):
     fig, ax = plt.subplots(figsize=(10, 6))
     
     if RUN_ORIGINAL_LXMIXER:
-        ax.plot(m_list_valid, mean_times_original_lxmixer_valid, "o-b", label="Original LXMixer (mean)")
+        ax.plot(m_list_valid, mean_times_original_lxmixer_valid, "o-b", label="Original (mean)")
         ax.fill_between(
             m_list_valid,
             mean_times_original_lxmixer_valid - np.sqrt(var_times_original_lxmixer_valid),
             mean_times_original_lxmixer_valid + np.sqrt(var_times_original_lxmixer_valid),
             color="blue",
             alpha=0.35,
-            label="Original LXMixer (1σ)"
+            label="Original (1σ)"
         )
         ax.plot(m_list_valid, min_times_original_lxmixer_valid, ":b", alpha=0.7)
         ax.plot(m_list_valid, max_times_original_lxmixer_valid, ":b", alpha=0.7)
@@ -878,14 +878,14 @@ def main(n, num_samples=100):
         method_min_times_valid = min_times_lxmixer_methods[method][valid_indices]
         method_max_times_valid = max_times_lxmixer_methods[method][valid_indices]
         
-        ax.plot(m_list_valid, method_mean_times_valid, f"{marker}-", color=color, label=f"LXMixer ({method}) (mean)")
+        ax.plot(m_list_valid, method_mean_times_valid, f"{marker}-", color=color, label=f"{method.replace("_", " ").capitalize()} (mean)")
         ax.fill_between(
             m_list_valid,
             method_mean_times_valid - np.sqrt(method_var_times_valid),
             method_mean_times_valid + np.sqrt(method_var_times_valid),
             color=color,
             alpha=0.35,
-            label=f"LXMixer ({method}) (1σ)"
+            label=f"{method.replace("_", " ").capitalize()} (1σ)"
         )
         ax.plot(m_list_valid, method_min_times_valid, ":", color=color, alpha=0.7)
         ax.plot(m_list_valid, method_max_times_valid, ":", color=color, alpha=0.7)
@@ -903,7 +903,7 @@ def main(n, num_samples=100):
         ax.set_title(f"Original LXMixer Execution Time (n={n})")
         timing_filename = f"timing_original_lxmixer_only_n{n}.png"
     else:
-        method_names = ", ".join([method.capitalize() for method in lxmixer_methods])
+        method_names = ", ".join([method.replace("_", " ").capitalize() for method in lxmixer_methods])
         ax.set_title(f"LXMixer Execution Time: {method_names} (n={n})")
         timing_filename = f"timing_lxmixer_only_n{n}.png"
     
