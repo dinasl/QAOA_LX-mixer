@@ -24,10 +24,34 @@ mixer_new_path = current_path.parent
 
 # GitHub configuration for mixer_old
 GITHUB_REPO_ZIP_URL = "https://github.com/OpenQuantumComputing/LogicalXMixer/archive/refs/heads/main.zip"
+CACHE_DIR = os.path.join(os.path.expanduser("~"), ".qaoa_mixer_cache")
+CACHE_EXPIRY_HOURS = 24  # Re-download after 24 hours
 
 def download_github_repository():
-    """Download the entire GitHub repository as a ZIP file and extract it"""
-    print("Downloading entire Franz mixer repository from GitHub...")
+    """Download the entire GitHub repository as a ZIP file and extract it, with caching"""
+    
+    # Create cache directory if it doesn't exist
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cached_repo_path = os.path.join(CACHE_DIR, "LogicalXMixer")
+    cache_timestamp_file = os.path.join(CACHE_DIR, "last_download.txt")
+    
+    # Check if we have a cached version and if it's still fresh
+    if os.path.exists(cached_repo_path) and os.path.exists(cache_timestamp_file):
+        try:
+            with open(cache_timestamp_file, 'r') as f:
+                last_download_time = float(f.read().strip())
+            
+            current_time = time.time()
+            hours_since_download = (current_time - last_download_time) / 3600
+            
+            if hours_since_download < CACHE_EXPIRY_HOURS:
+                return cached_repo_path
+            else:
+                print(f"Cached repository is {hours_since_download:.1f} hours old, re-downloading...")
+        except (FileNotFoundError, ValueError) as e:
+            print(f"Error reading cache timestamp, re-downloading... ({e})")
+    
+    # print("Downloading entire Franz mixer repository from GitHub...")
     
     # Create a temp directory for the download
     temp_dir = tempfile.mkdtemp()
@@ -35,11 +59,9 @@ def download_github_repository():
     
     try:
         # Download the repository ZIP file
-        print(f"  Downloading repository ZIP...")
         urllib.request.urlretrieve(GITHUB_REPO_ZIP_URL, zip_path)
         
         # Extract the ZIP file
-        print(f"  Extracting repository...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
         
@@ -50,17 +72,41 @@ def download_github_repository():
             return None
         
         repo_folder = os.path.join(temp_dir, extracted_folders[0])
-        print(f"  Repository extracted to: {repo_folder}")
-        print(f"  Files in repository: {os.listdir(repo_folder)}")
         
-        # Clean up the ZIP file
-        os.remove(zip_path)
+        # Remove old cached version if it exists
+        if os.path.exists(cached_repo_path):
+            shutil.rmtree(cached_repo_path)
         
-        return repo_folder
+        # Move the downloaded repository to the cache location
+        shutil.move(repo_folder, cached_repo_path)
+        
+        # Save the download timestamp
+        with open(cache_timestamp_file, 'w') as f:
+            f.write(str(time.time()))
+        
+        # print(f"  Repository cached to: {cached_repo_path}")
+        # print(f"  Files in repository: {os.listdir(cached_repo_path)}")
+        
+        # Clean up the temporary directory
+        shutil.rmtree(temp_dir)
+        
+        return cached_repo_path
         
     except Exception as e:
         print(f"Error downloading/extracting repository: {e}")
+        # Clean up temp directory on error
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
         return None
+
+def force_refresh_cache():
+    """Force refresh the cached repository by removing it"""
+    cache_timestamp_file = os.path.join(CACHE_DIR, "last_download.txt")
+    if os.path.exists(cache_timestamp_file):
+        os.remove(cache_timestamp_file)
+        print("Cache invalidated - next run will download fresh repository")
+    else:
+        print("No cache found to refresh")
 
 def load_module(alias_name, file_path):
     import importlib.util
@@ -81,7 +127,13 @@ def load_module(alias_name, file_path):
 mixer_new = load_module("Mixer", mixer_new_path / "Mixer.py")
 stabilizer_new = load_module("Stabilizer", mixer_new_path / "Stabilizer.py")
 
+# CONFIGURATION: Cache settings
+FORCE_REFRESH_CACHE = False  # Set to True to force download fresh repository (ignores cache)
+
 # Download and load mixer_old from GitHub repository
+if FORCE_REFRESH_CACHE:
+    force_refresh_cache()
+
 repo_folder = download_github_repository()
 if repo_folder is None:
     print("Failed to download Franz mixer repository from GitHub!")
