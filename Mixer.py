@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from Stabilizer import *
 from utils import is_connected, is_power_of_two, find_best_cost
-from plotting.plot_mixers import draw_best_graphs, draw_mixer_graph, draw_family_of_valid_graphs, X0
+from plotting.plot_mixers import Plotter
 
 # TODO: Finish implementing the "semi_restricted_suborbits" method. The current implementation runs fine, and even yields a lower cost than the
 # "all_suborbits" method (as expected), but wrongly excludes other nodes in the main orbit that are connected by the same operator as a suborbit
@@ -399,16 +399,17 @@ if __name__ == '__main__':
    
     # """
     # """
+    plotter = Plotter(lxmixer)
     
     # Draw family of valid graphs.
-    # draw_family_of_valid_graphs(lxmixer, lw=1.5, r=0.2, group_size=2)
+    # plotter.draw_family_of_valid_graphs(lw=1.5, r=0.2, group_size=2)
    
     # Draw the best mixer graph.
-    draw_best_graphs(lxmixer, r=0.15, lw =1.25)
+    plotter.draw_best_graphs(r=0.15, lw=1.25)
     
     # Draw specified orbit(s).
     # fig, ax = plt.subplots()
-    # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, x=X0, r=0.1)
+    # plotter.draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], r=0.1)
     # """
     
     plt.show()
