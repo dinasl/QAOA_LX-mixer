@@ -49,7 +49,7 @@ import copy
 
 
 # Add path to module
-sys.path.insert(0, os.path.abspath("C:/Users/sanne/QAOA_LX-mixer"))
+# Add path
 from Stabilizer import *
 from Mixer import Orbit
 
