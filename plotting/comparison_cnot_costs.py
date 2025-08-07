@@ -151,12 +151,11 @@ if not os.path.exists(mixer_old_path):
     exit(1)
 
 mixer_new = load_module("Mixer", mixer_new_path / "Mixer.py")
-stabilizer_new = load_module("Stabilizer", mixer_new_path / "Stabilizer.py")
 mixer_old = load_module("Original_LXMixer", mixer_old_path)
 
 OriginalLXMixer = mixer_old.Mixer
 LXMixer = mixer_new.LXMixer
-Stabilizer = stabilizer_new.Stabilizer
+
 
 
 class Worker:
@@ -246,9 +245,8 @@ class Worker:
                 mixer = LXMixer(B_integers, nL, method=method)
                 mixer.compute_family_of_valid_graphs()
                 mixer.compute_all_orbits()
-                stabilizer = Stabilizer(B=mixer.B, n=mixer.nL, orbit_dictionary=mixer.orbits)
-                stabilizer.compute_minimal_generating_sets()
-                stabilizer.compute_projector_stabilizers()
+                mixer.compute_minimal_generating_sets()
+                mixer.compute_projector_stabilizers()
                 mixer.compute_costs()
                 
                 mixer.find_best_mixer()
