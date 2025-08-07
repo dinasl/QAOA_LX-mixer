@@ -6,12 +6,10 @@ import math
 from tqdm import tqdm
 
 from Stabilizer import *
-from utils import is_connected, is_power_of_two, find_best_cost
+from utils import is_connected, is_power_of_two, find_best_cost, pauli_int_to_str
 from plotting.plot_mixers import draw_best_graphs, draw_mixer_graph, draw_family_of_valid_graphs, X0
 
-# TODO: Finish implementing the "semi_restricted_suborbits" method. The current implementation runs fine, and even yields a lower cost than the
-# "all_suborbits" method (as expected), but wrongly excludes other nodes in the main orbit that are connected by the same operator as a suborbit
-# (and thus probably finds a higher than necessary cost solution).
+# TODO: Implement the "semi_restricted_suborbits" method.
 
 @dataclass
 class Suborbit:
@@ -47,7 +45,7 @@ class LXMixer:
         nB (int): Number of elements in the feasible set B.
         nL (int): Number of qubits. 
         sort (bool): Whether to sort the feasible set B (default: False).
-        method (str): Method to use for finding the best mixer, either "largest_orbits", "all_suborbits" or "semi_restricted_suborbits" (default: "largest_orbits").
+        method (str): Method to use for finding the best mixer, either "largest_orbits" or "all_suborbits" ("semi_restricted_suborbits" not implemented yet). Default is "largest_orbits".
         
         family_of_valid_graphs (Dict[int, List[Tuple[int,...]]]): A dictionary mapping logical X operators (int) to edges (tuples of node indices) connected by the operator X_ij : (i,j).
         node_connectors (Dict[Dict[int, int]]): Maps for each node, another node from B and the logical X operator that connects them i : j : X_ij.
@@ -78,10 +76,12 @@ class LXMixer:
         
         if method not in ["largest_orbits", "all_suborbits", "semi_restricted_suborbits"]:
             raise ValueError("Method must be one of 'largest_orbits', 'all_suborbits' or 'semi_restricted_suborbits'.")
+        elif method == "semi_restricted_suborbits":
+            raise NotImplementedError("The 'semi_restricted_suborbits' method is not implemented yet.")
         self.method = method
         
         # Prepare empty attributes
-        self.family_of_valid_graphs : Dict[int, List[Tuple[int,...]]] = {} # Maps logical X operators to edges (tuples of node indices) connected by the operator X_ij : (i,j).
+        self.family_of_valid_graphs : Dict[int, List[Tuple[int,...]]] = {} 
         self.node_connectors : Dict[int, Dict[int, int]] = {} # Maps for each node, another node from B and the logical X operator that connects them i : j : X_ij.
         for i in range(self.nB): self.node_connectors[i] = {}
         self.orbits : Dict[Tuple[int,...], Orbit] = {}
@@ -172,17 +172,10 @@ class LXMixer:
                         # If we only want the largest orbits in the main dictionary, remove sets that are subsets of the new orbit.
                         if self.method != "all_suborbits":
                             for nodes in list(self.orbits.keys()):
-                                if set(nodes) < set(current_nodes):
-                                    if self.method == "semi_restricted_suborbits": # If we want to keep suborbit information (semi-restricted suborbits) add suborbits to their respective main orbits.
-                                        self.orbits[current_nodes_tuple].suborbits[nodes] = Suborbit(Xs=self.orbits[nodes].Xs)
+                                if set(nodes) < set(current_nodes): # If the current orbit is a superset of an existing orbit, remove the existing orbit.
                                     self.orbits.pop(nodes)
                                     
                         if len(current_nodes) > 2: processed_nodes.update(current_nodes) # Mark nodes in non-trivial orbits as processed. Will be skipped when these seeds are reached.
-                
-                    elif self.method == "semi_restricted_suborbits": # If we want to keep suborbit information (semi-restricted suborbits), and some orbit contains the current nodes, add the current nodes as a suborbit to this larger orbit.
-                        for nodes in self.orbits.keys():
-                            if set(nodes) > set(current_nodes):
-                                self.orbits[nodes].suborbits[current_nodes_tuple] = Suborbit(Xs=current_path)
                 
                 for x, X in enumerate(available_Xs): # Iterate over the available X operators to choose from at this point in the tree. 
                     new_path = current_path + [X] # Add the new X operator to the path.
@@ -196,10 +189,6 @@ class LXMixer:
                         continue
                         
                     stack.append((new_path, new_available, tuple(sorted(new_nodes)))) # Add a valid path to the stack.
-        
-        if self.method == "semi_restricted_suborbits":
-            for nodes, orbit in self.orbits.items():
-                orbit.suborbits[nodes] = Suborbit(Xs=orbit.Xs) # Add the orbit itself as a suborbit to itself (simpler when considering combinations).
                     
     def compute_costs(self):
         """
@@ -207,18 +196,10 @@ class LXMixer:
         
         Iterates through each orbit and chooses the combination of logical X operators that yield the lowest cost with the Z operators.
         """        
-        for nodes, orbit in self.orbits.items():
+        for orbit in self.orbits.values():
             best_Xs, best_cost = find_best_cost(orbit.Xs, orbit.Zs) # Finds the best combination of log2(# of nodes) logical X operators that yield the lowest cost with the projectors.
             orbit.Xs = best_Xs
             orbit.cost = best_cost
-            for subnodes, suborbit in orbit.suborbits.items():
-                if subnodes == nodes: 
-                    orbit.suborbits[subnodes].Xs = orbit.Xs
-                    orbit.suborbits[subnodes].cost = orbit.cost
-                    continue
-                best_Xs, best_cost = find_best_cost(suborbit.Xs, orbit.Zs)
-                suborbit.Xs = best_Xs
-                suborbit.cost = best_cost
         
     def find_best_mixer(self):
         """ 
@@ -233,58 +214,27 @@ class LXMixer:
             self.best_combinations = [[B_orbit]]
             return
         
-        best_main_combinations = [] # List to store the best main combinations of orbits (if using semi-restricted suborbits).
         N = range(2, min([self.nB, len(self.orbits)+1])) # Range of the number of orbits to combine. Goes from 2 to |B|-1 (worst-case is a chain).
         for n in N:
-            if self.method == "semi_restricted_suborbits": # If using semi-restricted suborbits, we need to consider combinations of main orbits and their suborbits.
-                for main_combination in tqdm(combinations(self.orbits.keys(), n), desc=f"Main combo size {n}/{self.nB-1}"):
-                    if len({node for nodes in main_combination for node in nodes}) != self.nB or not is_connected(main_combination): # If the combination doesn't cover all nodes in B or is unconnected, skip.
-                        continue
-                    for combination in product(*[self.orbits[main_nodes].suborbits.keys() for main_nodes in main_combination]): # Cartesian product of the main orbits' suborbits.
-                        if len({node for nodes in combination for node in nodes}) != self.nB or not is_connected(combination): # If the combination doesn't cover all nodes in B or is unconnected, skip.
-                            continue
-                        cost = 0
-                        for main_nodes, sub_nodes in zip(main_combination, combination):
-                            cost += self.orbits[main_nodes].suborbits[sub_nodes].cost
-                            if cost > self.best_cost: # If the cost at any point exceeds the best cost, go to the next combination.
-                                break
-                        if cost < self.best_cost: # If the cost is strictly lower that the best cost, update the best cost and combination.
-                            self.best_cost = cost
-                            best_main_combinations = [main_combination]
-                            self.best_combinations = [combination]
-                        elif cost == self.best_cost: # If the cost is equal to the best cost, add the combination to the list of best combinations.
-                            best_main_combinations.append(main_combination)
-                            self.best_combinations.append(combination)
-            else:
-                for combination in tqdm(combinations(self.orbits.keys(), n), desc=f"Combo size {n}/{self.nB-1}"):
-                    if len({node for nodes in combination for node in nodes}) != self.nB: # If the combination does not cover all nodes in B, skip it.
-                        continue
-                    if not is_connected(combination): # If the combination doesn't connect all nodes or is unconnected, skip.
-                        continue
-                    cost = 0
-                    for orbit_nodes in combination:
-                        cost += self.orbits[orbit_nodes].cost # Add the cost each orbit in the combination.
-                        if cost > self.best_cost: # If the cost at any point exceeds the best cost, go to the next combination.
-                            break
-                    if cost < self.best_cost: # If the cost is strictly lower that the best cost, update the best cost and combination.
-                        self.best_cost = cost
-                        self.best_combinations = [combination]
-                    elif cost == self.best_cost: # If the cost is equal to the best cost, add the combination to the list of best combinations.
-                        self.best_combinations.append(combination)
+            for combination in tqdm(combinations(self.orbits.keys(), n), desc=f"Combo size {n}/{self.nB-1}"):
+                if len({node for nodes in combination for node in nodes}) != self.nB: # If the combination does not cover all nodes in B, skip it.
+                    continue
+                if not is_connected(combination): # If the combination doesn't connect all nodes or is unconnected, skip.
+                    continue
+                cost = 0
+                for orbit_nodes in combination:
+                    cost += self.orbits[orbit_nodes].cost # Add the cost each orbit in the combination.
+                    if cost > self.best_cost: # If the cost at any point exceeds the best cost, go to the next combination.
+                        break
+                if cost < self.best_cost: # If the cost is strictly lower that the best cost, update the best cost and combination.
+                    self.best_cost = cost
+                    self.best_combinations = [combination]
+                elif cost == self.best_cost: # If the cost is equal to the best cost, add the combination to the list of best combinations.
+                    self.best_combinations.append(combination)
         
         # Add the corresponding X operators and projectors to the best combination(s).
-        if self.method == "semi_restricted_suborbits":
-            self.best_Xs = [
-                [self.orbits[main_nodes].suborbits[sub_nodes].Xs for main_nodes, sub_nodes in zip(main_comb, sub_comb)]
-                for main_comb, sub_comb in zip(best_main_combinations, self.best_combinations)
-            ]
-            self.best_Zs = [
-                [self.orbits[main_nodes].Zs for main_nodes in main_comb]
-                for main_comb in best_main_combinations
-            ]
-        else:
-            self.best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in self.best_combinations]
-            self.best_Zs = [[self.orbits[orbit_nodes].Zs for orbit_nodes in combination] for combination in self.best_combinations]
+        self.best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in self.best_combinations]
+        self.best_Zs = [[self.orbits[orbit_nodes].Zs for orbit_nodes in combination] for combination in self.best_combinations]
         return
         
 # Standalone code, e.g. example usage and testing.
@@ -301,10 +251,9 @@ if __name__ == '__main__':
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # nB = 5, example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100] # nB = 6
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010] # nB = 7
-    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
-    #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
-    B = [0,1,2,3,4,5,6,7]
+    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
+         0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
     # nL = 5
     # B = [0b10011, 0b01100, 0b11000, 0b00011,
     #     0b01001, 0b10100, 0b00110, 0b01110] # nB = 8
@@ -314,13 +263,12 @@ if __name__ == '__main__':
     #     0b01010, 0b01100, 0b10001, 
     #     0b10010, 0b10100, 0b11000] # nB = 15
     
-    print(f"\nB = {[f"{b:0{len(bin(max(B)))-2}b}" for b in B]}") # Print B in binary format.
+    print(f"\nB = [{" ,".join(f"|{b:0{len(bin(max(B)))-2}b}>" for b in B)}]") # Print B in binary format.
     
     # Initialize the LXMixer with the feasible set B and number of logical qubits nL.
     # lxmixer = LXMixer(B, 3)
-    lxmixer = LXMixer(B, 4, method="semi_restricted_suborbits")
+    lxmixer = LXMixer(B, 4, method="largest_orbits")
     # lxmixer = LXMixer(B, 4, method="all_suborbits")
-    # lxmixer = LXMixer(B, 4, method="largest_orbits")
     # lxmixer = LXMixer(B, 5)
 
     print("\nComputing family of valid graphs...")
@@ -332,7 +280,7 @@ if __name__ == '__main__':
 
     print("\nFamily of valid graphs:")
     for k, v in lxmixer.family_of_valid_graphs.items():
-        print(f"{k:0{lxmixer.nL}b} : {v}")
+        print(f"{pauli_int_to_str(k, lxmixer.nL)} : {v}")
 
     print("\nComputing all orbits...")
     start_time = time.time()
@@ -349,9 +297,8 @@ if __name__ == '__main__':
 
     print("\nOrbits (without projectors and costs):")
     for nodes, orbit in lxmixer.orbits.items():
-        print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
-        for suborbit_nodes, suborbit in orbit.suborbits.items():
-            print(f"  {suborbit_nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in suborbit.Xs)}]")
+        print(f"{nodes} : [{', '.join(f'{pauli_int_to_str(X, lxmixer.nL)}' for X in orbit.Xs)}]")
+
     # """
     
     S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits) # Initialize the Stabilizer object with the feasible set B, number of logical qubits nL and orbits dictionary.
@@ -379,9 +326,7 @@ if __name__ == '__main__':
     
     print("\nOrbits with projectors and costs:")
     for nodes, orbit in lxmixer.orbits.items():
-        print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}], Zs = [{', '.join(f'{"+" if Z[0] == 1 else "-"}{Z[1]:0{lxmixer.nL}b}' for Z in orbit.Zs if len(Z) == 2)}], cost = {orbit.cost}")
-        for suborbit_nodes, suborbit in orbit.suborbits.items():
-            print(f"  {suborbit_nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in suborbit.Xs)}], cost = {suborbit.cost}")
+        print(f"{nodes} : [{', '.join(f'{pauli_int_to_str(X, lxmixer.nL)}' for X in orbit.Xs)}], [{', '.join(f'{"+" if Z[0] == 1 else "-"}{pauli_int_to_str(Z[1], lxmixer.nL, "Z")}' for Z in orbit.Zs if len(Z) == 2)}], {orbit.cost}")
     
     print("\nFinding best mixer...")
     start_time = time.time()
@@ -393,9 +338,9 @@ if __name__ == '__main__':
     
     print(f"\nFound {len(best_Xs)} best combinations of orbits with cost {best_cost}.")
     print("\nBest mixer:")
-    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f"{x:0{lxmixer.nL}b}" for x in sub_Xs)}]" for sub_Xs in Xs)}]' for Xs in best_Xs)}]")
+    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f"{pauli_int_to_str(x, lxmixer.nL)}" for x in sub_Xs)}]" for sub_Xs in Xs)}]' for Xs in best_Xs)}]")
     print("\nBest projectors:")
-    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
+    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{pauli_int_to_str(z[1], lxmixer.nL, "Z")}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
    
     # """
     # """
