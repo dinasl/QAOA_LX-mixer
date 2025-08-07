@@ -149,8 +149,6 @@ def find_best_cost(Xs, Zs_operators):
     Return:
         List[int]: A list of the best logical X operators (int representations).
     """
-    # Xs = orbit.Xs 
-    # Zs = orbit.Zs #remember to change from (1, string) to only string...
     all_x_operators = []
     n = len(Xs)
     Zs = [string[1] for string in Zs_operators]
@@ -171,27 +169,7 @@ def find_best_cost(Xs, Zs_operators):
         
         all_costs[used_Xs] = total_cost
     
-    """
-    # TODO Check this part!!! might be able to do it more efficiently
-    # The Xs we demand will be in the solution somehow (to make sure its an orbit)
-    required_set = set(Xs)
-    best = None
-    min_cost = float('inf')
-    all_costs_as_list = list(all_costs.items())
-    for group in combinations(all_costs_as_list, n):
-        covered_1 = set()
-        total_cost = 0
-
-        for combo, cost in group:
-            covered_1.update(combo)
-            total_cost += cost
-
-        if covered_1 >= required_set and total_cost < min_cost:
-            best = group
-            min_cost = total_cost
-    """
-
-    # New version, hopefully more efficient
+    # Find the best combination of Xs that minimizes the cost
     best_Xs = []
     best_cost = 0
     covered = set()
@@ -201,8 +179,6 @@ def find_best_cost(Xs, Zs_operators):
     while len(best_Xs) < n:
         lowest_cost = min(all_costs.values())
         keys = [k for k, v in all_costs.items() if v == lowest_cost]
-        #print("this is the key:", keys)
-        #print("this is the lowest cost:", lowest_cost)
         
         # iterate through the keys with the lowest cost
         for key in keys:
@@ -228,7 +204,7 @@ def find_best_cost(Xs, Zs_operators):
 
     best_Xs_reduced = [reduce(operator.xor, x) for x in best_Xs]
 
-    return best_Xs_reduced, best_cost#, list(best), min_cost
+    return best_Xs_reduced, best_cost
 
 if __name__ == '__main__':
     results = find_best_cost([0b0010, 0b0110, 0b1000, 0b1001, 0b1111, 0b0000], [(1, 0b0010), (1, 0b0110), (1, 0b1000), (1, 0b1010), (1, 0b1100), (1, 0b1110)])
