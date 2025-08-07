@@ -1,7 +1,4 @@
 from multiprocessing import Pool
-
-#import tikzplotlib
-
 import itertools
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for saving plots
@@ -9,23 +6,17 @@ from matplotlib import pyplot as plt
 import numpy as np
 from random import sample
 import time
+import sys
+import importlib.util
+import math
+import traceback
+
 from pathlib import Path
 import urllib.request
 import tempfile
 import os
 import zipfile
 import shutil
-
-# Get the directory where the current file is located
-current_path = Path(__file__).resolve().parent
-
-# Go one level up
-mixer_new_path = current_path.parent
-
-# GitHub configuration for mixer_old
-GITHUB_REPO_ZIP_URL = "https://github.com/OpenQuantumComputing/LogicalXMixer/archive/refs/heads/main.zip"
-CACHE_DIR = os.path.join(os.path.expanduser("~"), ".qaoa_mixer_cache")
-CACHE_EXPIRY_HOURS = 24  # Re-download after 24 hours
 
 def download_github_repository():
     """Download the entire GitHub repository as a ZIP file and extract it, with caching"""
@@ -124,8 +115,39 @@ def load_module(alias_name, file_path):
     spec.loader.exec_module(module)
     return module
 
-mixer_new = load_module("Mixer", mixer_new_path / "Mixer.py")
-stabilizer_new = load_module("Stabilizer", mixer_new_path / "Stabilizer.py")
+# CONFIGURATION: Choose which mixers to run
+# Set to True to run that mixer, False to skip it
+RUN_FRANZ_MIXER = True    # Set to False to skip Franz mixer
+RUN_LXMIXER_LARGEST_ORBIT = True        # Set to False to skip LXMixer largest orbits
+RUN_LXMIXER_ALL_SUBORBIT = True         # Set to False to skip LXMixer all suborbits  
+RUN_LXMIXER_SEMI_RESTRICTED_SUBORBIT = False # Set to False to skip LXMixer semi-restricted suborbits (not implemented yet)
+
+# Helper variable for backward compatibility
+RUN_LXMIXER = RUN_LXMIXER_LARGEST_ORBIT or RUN_LXMIXER_ALL_SUBORBIT or RUN_LXMIXER_SEMI_RESTRICTED_SUBORBIT
+
+# You can also run only one mixer by setting others to False:
+# RUN_FRANZ_MIXER = True; RUN_LXMIXER = False   # Only Franz
+# RUN_FRANZ_MIXER = False; RUN_LXMIXER = True   # Only LXMixer
+
+# USAGE EXAMPLES:
+# 1. Run both mixers (default):
+#    RUN_FRANZ_MIXER = True; RUN_LXMIXER = True
+# 2. Only run Franz mixer (faster, no LXMixer computation):
+#    RUN_FRANZ_MIXER = True; RUN_LXMIXER = False
+# 3. Only run LXMixer (faster, no Franz mixer computation):
+#    RUN_FRANZ_MIXER = False; RUN_LXMIXER = True
+
+
+# Get the directory where the current file is located
+current_path = Path(__file__).resolve().parent
+
+# Go one level up
+mixer_new_path = current_path.parent
+
+# GitHub configuration for mixer_old
+GITHUB_REPO_ZIP_URL = "https://github.com/OpenQuantumComputing/LogicalXMixer/archive/refs/heads/main.zip"
+CACHE_DIR = os.path.join(os.path.expanduser("~"), ".qaoa_mixer_cache")
+CACHE_EXPIRY_HOURS = 24  # Re-download after 24 hours
 
 # CONFIGURATION: Cache settings
 FORCE_REFRESH_CACHE = False  # Set to True to force download fresh repository (ignores cache)
@@ -139,62 +161,31 @@ if repo_folder is None:
     print("Failed to download Franz mixer repository from GitHub!")
     exit(1)
 
-mixer_old_file = os.path.join(repo_folder, "Mixer.py")
-if not os.path.exists(mixer_old_file):
+mixer_old_path = os.path.join(repo_folder, "Mixer.py")
+if not os.path.exists(mixer_old_path):
     print("Mixer.py not found in downloaded repository!")
     print(f"Available files: {os.listdir(repo_folder)}")
     exit(1)
 
-mixer_old = load_module("Mixer_Franz", mixer_old_file)
+mixer_new = load_module("Mixer", mixer_new_path / "Mixer.py")
+stabilizer_new = load_module("Stabilizer", mixer_new_path / "Stabilizer.py")
+mixer_old = load_module("Mixer_Franz", mixer_old_path)
 
 MixerFranz = mixer_old.Mixer
 LXMixer = mixer_new.LXMixer
 Stabilizer = stabilizer_new.Stabilizer
-
-"""
-import sys
-import os
-
-# Add parent directory to path to import Mixer
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-mixer_path = os.path.join(parent_dir, 'Mixer.py')
-sys.path.append(parent_dir)
-
-from Mixer import *
-
-# Importing necessary classes from Mixer module
-sys.path.append(r"C:\\Users\\sanne\\LogicalXMixer")
-from Mixer_Franz import MixerFranz
-"""
-
-# CONFIGURATION: Choose which mixers to run
-# Set to True to run that mixer, False to skip it
-RUN_FRANZ_MIXER = True    # Set to False to skip Franz mixer
-RUN_LXMIXER = True        # Set to False to skip LXMixer
-
-# You can also run only one mixer by setting one to False:
-# RUN_FRANZ_MIXER = True; RUN_LXMIXER = False   # Only Franz
-# RUN_FRANZ_MIXER = False; RUN_LXMIXER = True   # Only LXMixer
-
-# USAGE EXAMPLES:
-# 1. Run both mixers (default):
-#    RUN_FRANZ_MIXER = True; RUN_LXMIXER = True
-# 2. Only run Franz mixer (faster, no LXMixer computation):
-#    RUN_FRANZ_MIXER = True; RUN_LXMIXER = False
-# 3. Only run LXMixer (faster, no Franz mixer computation):
-#    RUN_FRANZ_MIXER = False; RUN_LXMIXER = True
 
 
 class Worker:
 
     """n = dim(hilbert space)"""
 
-    def __init__(self, n, checkmixer=False, run_franz=True, run_lxmixer=True):
+    def __init__(self, n, checkmixer=False, run_franz=True, lxmixer_methods=[]):
         self.n = n  # Store n for later use
         self.all_states = ["".join(i) for i in itertools.product("01", repeat=n)]
         self.checkmixer = checkmixer
         self.run_franz = run_franz
-        self.run_lxmixer = run_lxmixer
+        self.lxmixer_methods = lxmixer_methods  # List of LXMixer methods to run
 
     def sample_B(self, m):
         """m = |B|"""
@@ -220,20 +211,22 @@ class Worker:
         # Franz mixer (uses strings) - following the exact pattern from random_B_franz_string.py
         if self.run_franz:
             try:
-                start_time = time.time()
-                
                 # Replicate the exact pattern from random_B_franz_string.py
                 cnots = None
                 cnots_reduced = None
                 
                 for chain in [True, False]:
                     for reduced in [True, False]:
+                        start_time = time.time()  # Time each variant separately
                         mixer_franz = MixerFranz(B_strings, reduced=reduced)
                         
                         if chain:
                             mixer_franz.get_chain_mixer()
                         else:
                             mixer_franz.get_best_mixer_commuting_graphs()
+                        
+                        end_time = time.time()
+                        variant_time = end_time - start_time
                         
                         if chain and reduced:
                             cnots_chain_reduced = mixer_franz.solution_chain_reduced_cost
@@ -243,12 +236,11 @@ class Worker:
                             cnots_reduced = mixer_franz.solution_reduced_cost
                         else:
                             cnots = mixer_franz.solution_cost
-                
-                end_time = time.time()
+                            # Store timing only for the optimal case (not chain, not reduced)
+                            timing_results['franz'] = variant_time
                 
                 # Use the "optimal" case (not chain, not reduced)
                 results['franz'] = cnots
-                timing_results['franz'] = end_time - start_time
                 print(f"Franz mixer - optimal cost: {cnots}, time: {timing_results['franz']:.4f}s")
                 
             except Exception as e:
@@ -262,13 +254,14 @@ class Worker:
             results['franz'] = 0  # or float('inf') if you prefer
             timing_results['franz'] = 0.0
         
-        # LXMixer (uses integers)
-        if self.run_lxmixer:
+        # LXMixer (uses integers) - run for each method
+        for method in self.lxmixer_methods:
+            method_key = f'lxmixer_{method}'
+            timing_key = f'lxmixer_{method}_time'
+            
             try:
                 start_time = time.time()
-                # if len(B_integers) == 7:
-                #     print("These are the B: ",B_integers)
-                mixer = LXMixer(B_integers, nL)
+                mixer = LXMixer(B_integers, nL, method=method)
                 mixer.compute_family_of_valid_graphs()
                 mixer.compute_all_orbits()
                 stabilizer = Stabilizer(B=mixer.B, n=mixer.nL, orbit_dictionary=mixer.orbits)
@@ -276,53 +269,87 @@ class Worker:
                 stabilizer.compute_projector_stabilizers()
                 mixer.compute_costs()
                 
-                #best_Xs, best_Zs, best_cost = mixer.find_best_mixer()
                 mixer.find_best_mixer()
                 best_cost = mixer.best_cost
                 
                 end_time = time.time()
                 
-                results['lxmixer'] = best_cost
-                timing_results['lxmixer'] = end_time - start_time
-                print(f"LXMixer - optimal cost: {best_cost}, time: {timing_results['lxmixer']:.4f}s")
+                results[method_key] = best_cost
+                timing_results[timing_key] = end_time - start_time
+                print(f"LXMixer ({method}) - optimal cost: {best_cost}, time: {timing_results[timing_key]:.4f}s")
                 
             except Exception as e:
-                print(f"Error with LXMixer: {e}")
-                # Store the failed B set for later analysis
+                print(f"Error with LXMixer ({method}): {e}")
                 failed_B_info = {
                     'B_strings': B_strings,
                     'B_integers': B_integers,
+                    'method': method,
                     'error': str(e)
                 }
-                results['lxmixer'] = float('inf')
-                timing_results['lxmixer'] = float('inf')
+                results[method_key] = float('inf')
+                timing_results[timing_key] = float('inf')
                 # Return the failed B info as additional data
-                return results['franz'], results['lxmixer'], timing_results['franz'], timing_results['lxmixer'], failed_B_info
-        else:
-            # Skip LXMixer - use default value
-            results['lxmixer'] = 0  # or float('inf') if you prefer
-            timing_results['lxmixer'] = 0.0
+                return (*[results.get(key, 0) for key in ['franz'] + [f'lxmixer_{m}' for m in self.lxmixer_methods]], 
+                        *[timing_results.get(key, 0) for key in ['franz'] + [f'lxmixer_{m}_time' for m in self.lxmixer_methods]], 
+                        failed_B_info)
 
-        print(f"Franz: {results['franz']}, LXMixer: {results['lxmixer']}")
-        return results['franz'], results['lxmixer'], timing_results['franz'], timing_results['lxmixer'], None
+        # Print summary for all methods
+        summary_parts = [f"Franz: {results['franz']}"]
+        for method in self.lxmixer_methods:
+            summary_parts.append(f"LXMixer({method}): {results[f'lxmixer_{method}']}")
+        print(", ".join(summary_parts))
+        
+        return (*[results.get(key, 0) for key in ['franz'] + [f'lxmixer_{m}' for m in self.lxmixer_methods]], 
+                *[timing_results.get(key, 0) for key in ['franz'] + [f'lxmixer_{m}_time' for m in self.lxmixer_methods]], 
+                None)
 
 
 def saveResult(res):
-    global cnots_franz, cnots_lxmixer, times_franz, times_lxmixer, failed_B_sets, infinity_B_sets
+    global cnots_franz, cnots_lxmixer_methods, times_franz, times_lxmixer_methods, failed_B_sets, infinity_B_sets
+    
+    # Get the active LXMixer methods for this run
+    lxmixer_methods = []
+    if RUN_LXMIXER_LARGEST_ORBIT:
+        lxmixer_methods.append("largest_orbits")
+    if RUN_LXMIXER_ALL_SUBORBIT:
+        lxmixer_methods.append("all_suborbits")
+    if RUN_LXMIXER_SEMI_RESTRICTED_SUBORBIT:
+        lxmixer_methods.append("semi_restricted_suborbits")
+    
+    num_methods = len(lxmixer_methods)
+    
+    # Extract Franz cost (always at index 0)
     cnots_franz.append(res[0])
-    cnots_lxmixer.append(res[1])
-    times_franz.append(res[2])
-    times_lxmixer.append(res[3])
     
-    # Check if there's a failed B set (5th element indicates LXMixer failure)
-    if len(res) > 4 and res[4] is not None:
-        failed_B_sets.append(res[4])
+    # Extract LXMixer costs for each method (indices 1 to num_methods)
+    for i, method in enumerate(lxmixer_methods, 1):
+        if method not in cnots_lxmixer_methods:
+            cnots_lxmixer_methods[method] = []
+        
+        if i < len(res) and isinstance(res[i], (int, float)):
+            cnots_lxmixer_methods[method].append(res[i])
+        else:
+            cnots_lxmixer_methods[method].append(float('inf'))
     
-    # Check if LXMixer returned infinity (even if it didn't "fail")
-    if res[1] == float('inf'):
-        # We need to get the B set info - this will be handled in the main loop
-        # since we don't have access to the B set here
-        pass
+    # Extract timing data (starts after costs)
+    franz_time_idx = 1 + num_methods
+    times_franz.append(res[franz_time_idx] if franz_time_idx < len(res) else 0.0)
+    
+    # Extract LXMixer timing for each method
+    for i, method in enumerate(lxmixer_methods):
+        if method not in times_lxmixer_methods:
+            times_lxmixer_methods[method] = []
+        
+        time_idx = franz_time_idx + 1 + i
+        if time_idx < len(res) and isinstance(res[time_idx], (int, float)):
+            times_lxmixer_methods[method].append(res[time_idx])
+        else:
+            times_lxmixer_methods[method].append(0.0)
+    
+    # Check for failed B set (last element)
+    failed_info_idx = franz_time_idx + 1 + num_methods
+    if failed_info_idx < len(res) and res[failed_info_idx] is not None:
+        failed_B_sets.append(res[failed_info_idx])
 
 
 def plot(m_list, mean_cnots, var_cnots, min_cnots, max_cnots, color, col, style, text):
@@ -351,14 +378,30 @@ def plot(m_list, mean_cnots, var_cnots, min_cnots, max_cnots, color, col, style,
 
 def main(n, num_samples=100):
     print("n=", n)
-    print(f"Configuration: Franz Mixer={'ON' if RUN_FRANZ_MIXER else 'OFF'}, LXMixer={'ON' if RUN_LXMIXER else 'OFF'}")
+    
+    # Build list of active LXMixer methods
+    lxmixer_methods = []
+    if RUN_LXMIXER_LARGEST_ORBIT:
+        lxmixer_methods.append("largest_orbits")
+    if RUN_LXMIXER_ALL_SUBORBIT:
+        lxmixer_methods.append("all_suborbits")
+    if RUN_LXMIXER_SEMI_RESTRICTED_SUBORBIT:
+        lxmixer_methods.append("semi_restricted_suborbits")
+    
+    # Configuration summary
+    config_parts = [f"Franz Mixer={'ON' if RUN_FRANZ_MIXER else 'OFF'}"]
+    for method in lxmixer_methods:
+        config_parts.append(f"LXMixer({method})=ON")
+    if not lxmixer_methods:
+        config_parts.append("LXMixer=OFF")
+    print(f"Configuration: {', '.join(config_parts)}")
     
     # Validate configuration
-    if not RUN_FRANZ_MIXER and not RUN_LXMIXER:
+    if not RUN_FRANZ_MIXER and not lxmixer_methods:
         print("ERROR: Both mixers are disabled! Please enable at least one mixer.")
         return
     
-    worker = Worker(n, checkmixer=False, run_franz=RUN_FRANZ_MIXER, run_lxmixer=RUN_LXMIXER)
+    worker = Worker(n, checkmixer=False, run_franz=RUN_FRANZ_MIXER, lxmixer_methods=lxmixer_methods)
 
     # Test the worker directly first
     print("Testing worker.get_costs directly...")
@@ -393,11 +436,17 @@ def main(n, num_samples=100):
     mean_cnots_franz = np.zeros(len(m_list))
     var_cnots_franz = np.zeros(len(m_list))
 
-    # Arrays for LXMixer
-    min_cnots_lxmixer = np.zeros(len(m_list))
-    max_cnots_lxmixer = np.zeros(len(m_list))
-    mean_cnots_lxmixer = np.zeros(len(m_list))
-    var_cnots_lxmixer = np.zeros(len(m_list))
+    # Arrays for each LXMixer method
+    min_cnots_lxmixer_methods = {}
+    max_cnots_lxmixer_methods = {}
+    mean_cnots_lxmixer_methods = {}
+    var_cnots_lxmixer_methods = {}
+    
+    for method in lxmixer_methods:
+        min_cnots_lxmixer_methods[method] = np.zeros(len(m_list))
+        max_cnots_lxmixer_methods[method] = np.zeros(len(m_list))
+        mean_cnots_lxmixer_methods[method] = np.zeros(len(m_list))
+        var_cnots_lxmixer_methods[method] = np.zeros(len(m_list))
 
     # Arrays for timing data
     min_times_franz = np.zeros(len(m_list))
@@ -405,10 +454,16 @@ def main(n, num_samples=100):
     mean_times_franz = np.zeros(len(m_list))
     var_times_franz = np.zeros(len(m_list))
 
-    min_times_lxmixer = np.zeros(len(m_list))
-    max_times_lxmixer = np.zeros(len(m_list))
-    mean_times_lxmixer = np.zeros(len(m_list))
-    var_times_lxmixer = np.zeros(len(m_list))
+    min_times_lxmixer_methods = {}
+    max_times_lxmixer_methods = {}
+    mean_times_lxmixer_methods = {}
+    var_times_lxmixer_methods = {}
+    
+    for method in lxmixer_methods:
+        min_times_lxmixer_methods[method] = np.zeros(len(m_list))
+        max_times_lxmixer_methods[method] = np.zeros(len(m_list))
+        mean_times_lxmixer_methods[method] = np.zeros(len(m_list))
+        var_times_lxmixer_methods[method] = np.zeros(len(m_list))
 
     # Track failed B sets for LXMixer
     all_failed_B_sets = []
@@ -416,11 +471,11 @@ def main(n, num_samples=100):
 
     for i, m in enumerate(m_list):
         print(f"\nProcessing m={m} (|B|={m}) - {i+1}/{len(m_list)}")
-        global cnots_franz, cnots_lxmixer, times_franz, times_lxmixer, failed_B_sets, infinity_B_sets
+        global cnots_franz, cnots_lxmixer_methods, times_franz, times_lxmixer_methods, failed_B_sets, infinity_B_sets
         cnots_franz = []
-        cnots_lxmixer = []
+        cnots_lxmixer_methods = {method: [] for method in lxmixer_methods}
         times_franz = []
-        times_lxmixer = []
+        times_lxmixer_methods = {method: [] for method in lxmixer_methods}
         failed_B_sets = []
         infinity_B_sets = []
         
@@ -461,12 +516,15 @@ def main(n, num_samples=100):
                 }
                 all_failed_B_sets.append((m, failed_B_info))
         
-        print(f"Collected {len(cnots_franz)} Franz results and {len(cnots_lxmixer)} LXMixer results for m={m}")
+        # Show collected results
+        lxmixer_result_counts = {method: len(results) for method, results in cnots_lxmixer_methods.items()}
+        print(f"Collected {len(cnots_franz)} Franz results and {lxmixer_result_counts} LXMixer results for m={m}")
         print(f"Failed: {failed_count}/{num_samples}")
         
         # Debug: Show what values we actually collected
         print(f"Franz results: {cnots_franz}")
-        print(f"LXMixer results: {cnots_lxmixer}")
+        for method, results in cnots_lxmixer_methods.items():
+            print(f"LXMixer {method} results: {results}")
         
         # Store failed B sets for this m value
         if failed_B_sets:
@@ -474,43 +532,49 @@ def main(n, num_samples=100):
             all_failed_B_sets.extend([(m, failed_B) for failed_B in failed_B_sets])
         
         # Check for infinity results and store those B sets
-        for j, lxmixer_result in enumerate(cnots_lxmixer):
-            if lxmixer_result == float('inf'):
-                # Find the corresponding B set
-                if j < len(worker_B_sets):
-                    B_strings, B_integers = worker_B_sets[j]
-                    infinity_B_info = {
-                        'B_strings': B_strings,
-                        'B_integers': B_integers,
-                        'error': 'LXMixer returned infinity (no exception thrown)'
-                    }
-                    infinity_B_sets.append(infinity_B_info)
+        for method, results in cnots_lxmixer_methods.items():
+            for j, lxmixer_result in enumerate(results):
+                if lxmixer_result == float('inf'):
+                    # Find the corresponding B set
+                    if j < len(worker_B_sets):
+                        B_strings, B_integers = worker_B_sets[j]
+                        infinity_B_info = {
+                            'B_strings': B_strings,
+                            'B_integers': B_integers,
+                            'method': method,
+                            'error': f'LXMixer {method} returned infinity (no exception thrown)'
+                        }
+                        infinity_B_sets.append(infinity_B_info)
         
         if infinity_B_sets:
             print(f"LXMixer returned infinity for {len(infinity_B_sets)} B sets for m={m}")
             all_infinity_B_sets.extend([(m, infinity_B) for infinity_B in infinity_B_sets])
         
-        if len(cnots_franz) == 0 or len(cnots_lxmixer) == 0:
+        # Check if we have any valid data
+        if len(cnots_franz) == 0 or all(len(results) == 0 for results in cnots_lxmixer_methods.values()):
             print(f"No results collected for m={m} - all tasks failed!")
             # Set to NaN instead of skipping to maintain array indices
             min_cnots_franz[i] = np.nan
             max_cnots_franz[i] = np.nan
             mean_cnots_franz[i] = np.nan
             var_cnots_franz[i] = np.nan
-            min_cnots_lxmixer[i] = np.nan
-            max_cnots_lxmixer[i] = np.nan
-            mean_cnots_lxmixer[i] = np.nan
-            var_cnots_lxmixer[i] = np.nan
+            
+            for method in lxmixer_methods:
+                min_cnots_lxmixer_methods[method][i] = np.nan
+                max_cnots_lxmixer_methods[method][i] = np.nan
+                mean_cnots_lxmixer_methods[method][i] = np.nan
+                var_cnots_lxmixer_methods[method][i] = np.nan
+                
+                min_times_lxmixer_methods[method][i] = np.nan
+                max_times_lxmixer_methods[method][i] = np.nan
+                mean_times_lxmixer_methods[method][i] = np.nan
+                var_times_lxmixer_methods[method][i] = np.nan
             
             # Timing data
             min_times_franz[i] = np.nan
             max_times_franz[i] = np.nan
             mean_times_franz[i] = np.nan
             var_times_franz[i] = np.nan
-            min_times_lxmixer[i] = np.nan
-            max_times_lxmixer[i] = np.nan
-            mean_times_lxmixer[i] = np.nan
-            var_times_lxmixer[i] = np.nan
             continue
 
         # Calculate statistics for Franz mixer
@@ -519,21 +583,24 @@ def main(n, num_samples=100):
         mean_cnots_franz[i] = np.mean(cnots_franz)
         var_cnots_franz[i] = np.var(cnots_franz)
 
-        # Calculate statistics for LXMixer
-        print(f"LXMixer results for m={m}: {cnots_lxmixer}")
-        print(f"LXMixer finite values: {[x for x in cnots_lxmixer if np.isfinite(x)]}")
-        
-        if len([x for x in cnots_lxmixer if np.isfinite(x)]) == 0:
-            print(f"All LXMixer values are infinite/NaN for m={m}")
-            min_cnots_lxmixer[i] = np.nan
-            max_cnots_lxmixer[i] = np.nan
-            mean_cnots_lxmixer[i] = np.nan
-            var_cnots_lxmixer[i] = np.nan
-        else:
-            min_cnots_lxmixer[i] = np.min(cnots_lxmixer)
-            max_cnots_lxmixer[i] = np.max(cnots_lxmixer)
-            mean_cnots_lxmixer[i] = np.mean(cnots_lxmixer)
-            var_cnots_lxmixer[i] = np.var(cnots_lxmixer)
+        # Calculate statistics for each LXMixer method
+        for method in lxmixer_methods:
+            method_results = cnots_lxmixer_methods[method]
+            print(f"LXMixer {method} results for m={m}: {method_results}")
+            finite_results = [x for x in method_results if np.isfinite(x)]
+            print(f"LXMixer {method} finite values: {finite_results}")
+            
+            if len(finite_results) == 0:
+                print(f"All LXMixer {method} values are infinite/NaN for m={m}")
+                min_cnots_lxmixer_methods[method][i] = np.nan
+                max_cnots_lxmixer_methods[method][i] = np.nan
+                mean_cnots_lxmixer_methods[method][i] = np.nan
+                var_cnots_lxmixer_methods[method][i] = np.nan
+            else:
+                min_cnots_lxmixer_methods[method][i] = np.min(finite_results)
+                max_cnots_lxmixer_methods[method][i] = np.max(finite_results)
+                mean_cnots_lxmixer_methods[method][i] = np.mean(finite_results)
+                var_cnots_lxmixer_methods[method][i] = np.var(finite_results)
 
         # Calculate timing statistics for Franz mixer
         min_times_franz[i] = np.min(times_franz)
@@ -541,13 +608,39 @@ def main(n, num_samples=100):
         mean_times_franz[i] = np.mean(times_franz)
         var_times_franz[i] = np.var(times_franz)
 
-        # Calculate timing statistics for LXMixer
-        min_times_lxmixer[i] = np.min(times_lxmixer)
-        max_times_lxmixer[i] = np.max(times_lxmixer)
-        mean_times_lxmixer[i] = np.mean(times_lxmixer)
-        var_times_lxmixer[i] = np.var(times_lxmixer)
+        # Calculate timing statistics for each LXMixer method
+        for method in lxmixer_methods:
+            method_times = times_lxmixer_methods[method]
+            min_times_lxmixer_methods[method][i] = np.min(method_times)
+            max_times_lxmixer_methods[method][i] = np.max(method_times)
+            mean_times_lxmixer_methods[method][i] = np.mean(method_times)
+            var_times_lxmixer_methods[method][i] = np.var(method_times)
 
         print(int(100 * (i + 1) / len(m_list)), "%")
+
+    # Create backward compatibility variables for plotting (combine all LXMixer methods)
+    # This is a temporary solution until we update the plotting code
+    if lxmixer_methods:
+        # For plotting, we'll use the first active method as representative
+        first_method = lxmixer_methods[0]
+        mean_cnots_lxmixer = mean_cnots_lxmixer_methods[first_method].copy()
+        var_cnots_lxmixer = var_cnots_lxmixer_methods[first_method].copy()
+        min_cnots_lxmixer = min_cnots_lxmixer_methods[first_method].copy()
+        max_cnots_lxmixer = max_cnots_lxmixer_methods[first_method].copy()
+        mean_times_lxmixer = mean_times_lxmixer_methods[first_method].copy()
+        var_times_lxmixer = var_times_lxmixer_methods[first_method].copy()
+        min_times_lxmixer = min_times_lxmixer_methods[first_method].copy()
+        max_times_lxmixer = max_times_lxmixer_methods[first_method].copy()
+    else:
+        # No LXMixer methods enabled
+        mean_cnots_lxmixer = np.full(len(m_list), np.nan)
+        var_cnots_lxmixer = np.full(len(m_list), np.nan)
+        min_cnots_lxmixer = np.full(len(m_list), np.nan)
+        max_cnots_lxmixer = np.full(len(m_list), np.nan)
+        mean_times_lxmixer = np.full(len(m_list), np.nan)
+        var_times_lxmixer = np.full(len(m_list), np.nan)
+        min_times_lxmixer = np.full(len(m_list), np.nan)
+        max_times_lxmixer = np.full(len(m_list), np.nan)
 
     # Print final data summary
     print(f"\nFinal data summary:")
@@ -560,10 +653,11 @@ def main(n, num_samples=100):
     else:
         print("Franz mixer was disabled")
     
-    if RUN_LXMIXER:
-        print(f"LXMixer means: {mean_cnots_lxmixer}")
-        print(f"LXMixer time means: {mean_times_lxmixer}")
-        print(f"LXMixer has {np.sum(~np.isnan(mean_cnots_lxmixer))} valid values")
+    if lxmixer_methods:
+        for method in lxmixer_methods:
+            print(f"LXMixer {method} means: {mean_cnots_lxmixer_methods[method]}")
+            print(f"LXMixer {method} time means: {mean_times_lxmixer_methods[method]}")
+            print(f"LXMixer {method} has {np.sum(~np.isnan(mean_cnots_lxmixer_methods[method]))} valid values")
     else:
         print("LXMixer was disabled")
 
@@ -571,8 +665,9 @@ def main(n, num_samples=100):
     print(f"\nDebugging infinite values:")
     if RUN_FRANZ_MIXER:
         print(f"Franz infinite values: {np.sum(np.isinf(mean_cnots_franz))}")
-    if RUN_LXMIXER:
-        print(f"LXMixer infinite values: {np.sum(np.isinf(mean_cnots_lxmixer))}")
+    if lxmixer_methods:
+        for method in lxmixer_methods:
+            print(f"LXMixer {method} infinite values: {np.sum(np.isinf(mean_cnots_lxmixer_methods[method]))}")
     
     # Check each m value individually
     for i, m in enumerate(m_list):
@@ -668,18 +763,30 @@ def main(n, num_samples=100):
         ax1.plot(m_list_valid, min_franz_valid, ":b", alpha=0.7)
         ax1.plot(m_list_valid, max_franz_valid, ":b", alpha=0.7)
 
-    if RUN_LXMIXER:
-        ax1.plot(m_list_valid, mean_lxmixer_valid, "x-r", label="LXMixer (mean)")
+    # Plot each LXMixer method separately
+    colors = ["red", "green", "orange", "purple", "brown"]
+    markers = ["x", "s", "^", "v", "d"]
+    
+    for i, method in enumerate(lxmixer_methods):
+        color = colors[i % len(colors)]
+        marker = markers[i % len(markers)]
+        
+        method_mean_valid = mean_cnots_lxmixer_methods[method][valid_indices]
+        method_var_valid = var_cnots_lxmixer_methods[method][valid_indices]
+        method_min_valid = min_cnots_lxmixer_methods[method][valid_indices]
+        method_max_valid = max_cnots_lxmixer_methods[method][valid_indices]
+        
+        ax1.plot(m_list_valid, method_mean_valid, f"{marker}-", color=color, label=f"LXMixer ({method}) (mean)")
         ax1.fill_between(
             m_list_valid,
-            mean_lxmixer_valid - np.sqrt(var_lxmixer_valid),
-            mean_lxmixer_valid + np.sqrt(var_lxmixer_valid),
-            color="red",
+            method_mean_valid - np.sqrt(method_var_valid),
+            method_mean_valid + np.sqrt(method_var_valid),
+            color=color,
             alpha=0.35,
-            label="LXMixer (1σ)"
+            label=f"LXMixer ({method}) (1σ)"
         )
-        ax1.plot(m_list_valid, min_lxmixer_valid, ":r", alpha=0.7)
-        ax1.plot(m_list_valid, max_lxmixer_valid, ":r", alpha=0.7)
+        ax1.plot(m_list_valid, method_min_valid, ":", color=color, alpha=0.7)
+        ax1.plot(m_list_valid, method_max_valid, ":", color=color, alpha=0.7)
 
     ax1.legend()
     ax1.set_xlim(min(m_list_valid), max(m_list_valid))
@@ -687,12 +794,13 @@ def main(n, num_samples=100):
     ax1.set_ylabel("#CNOTS")
     
     # Update title based on enabled mixers
-    if RUN_FRANZ_MIXER and RUN_LXMIXER:
+    if RUN_FRANZ_MIXER and lxmixer_methods:
         ax1.set_title(f"CNOT Cost Comparison (n={n})")
     elif RUN_FRANZ_MIXER:
         ax1.set_title(f"Franz Mixer CNOT Cost (n={n})")
     else:
-        ax1.set_title(f"LXMixer CNOT Cost (n={n})")
+        method_names = ", ".join(lxmixer_methods)
+        ax1.set_title(f"LXMixer CNOT Cost ({method_names}) (n={n})")
     ax1.grid()
 
     # Plot execution times (right subplot)
@@ -709,18 +817,27 @@ def main(n, num_samples=100):
         ax2.plot(m_list_valid, min_times_franz_valid, ":b", alpha=0.7)
         ax2.plot(m_list_valid, max_times_franz_valid, ":b", alpha=0.7)
 
-    if RUN_LXMIXER:
-        ax2.plot(m_list_valid, mean_times_lxmixer_valid, "x-r", label="LXMixer (mean)")
+    # Plot timing for each LXMixer method separately
+    for i, method in enumerate(lxmixer_methods):
+        color = colors[i % len(colors)]
+        marker = markers[i % len(markers)]
+        
+        method_mean_times_valid = mean_times_lxmixer_methods[method][valid_indices]
+        method_var_times_valid = var_times_lxmixer_methods[method][valid_indices]
+        method_min_times_valid = min_times_lxmixer_methods[method][valid_indices]
+        method_max_times_valid = max_times_lxmixer_methods[method][valid_indices]
+        
+        ax2.plot(m_list_valid, method_mean_times_valid, f"{marker}-", color=color, label=f"LXMixer ({method}) (mean)")
         ax2.fill_between(
             m_list_valid,
-            mean_times_lxmixer_valid - np.sqrt(var_times_lxmixer_valid),
-            mean_times_lxmixer_valid + np.sqrt(var_times_lxmixer_valid),
-            color="red",
+            method_mean_times_valid - np.sqrt(method_var_times_valid),
+            method_mean_times_valid + np.sqrt(method_var_times_valid),
+            color=color,
             alpha=0.35,
-            label="LXMixer (1σ)"
+            label=f"LXMixer ({method}) (1σ)"
         )
-        ax2.plot(m_list_valid, min_times_lxmixer_valid, ":r", alpha=0.7)
-        ax2.plot(m_list_valid, max_times_lxmixer_valid, ":r", alpha=0.7)
+        ax2.plot(m_list_valid, method_min_times_valid, ":", color=color, alpha=0.7)
+        ax2.plot(m_list_valid, method_max_times_valid, ":", color=color, alpha=0.7)
 
     ax2.legend()
     ax2.set_xlim(min(m_list_valid), max(m_list_valid))
@@ -728,23 +845,25 @@ def main(n, num_samples=100):
     ax2.set_ylabel("Execution Time (s)")
     
     # Update title based on enabled mixers
-    if RUN_FRANZ_MIXER and RUN_LXMIXER:
+    if RUN_FRANZ_MIXER and lxmixer_methods:
         ax2.set_title(f"Execution Time Comparison (n={n})")
     elif RUN_FRANZ_MIXER:
         ax2.set_title(f"Franz Mixer Execution Time (n={n})")
     else:
-        ax2.set_title(f"LXMixer Execution Time (n={n})")
+        method_names = ", ".join(lxmixer_methods)
+        ax2.set_title(f"LXMixer Execution Time ({method_names}) (n={n})")
     ax2.grid()
 
     plt.tight_layout()
     
     # Update filename based on enabled mixers
-    if RUN_FRANZ_MIXER and RUN_LXMIXER:
-        plt.savefig(f"comparison_n{n}.png")
+    if RUN_FRANZ_MIXER and lxmixer_methods:
+        plt.savefig(f"comparison_n{n}_multi_methods.png")
     elif RUN_FRANZ_MIXER:
         plt.savefig(f"franz_only_n{n}.png")
     else:
-        plt.savefig(f"lxmixer_only_n{n}.png")
+        method_str = "_".join(lxmixer_methods)
+        plt.savefig(f"lxmixer_{method_str}_n{n}.png")
     plt.clf()
 
     # Create separate timing plot
