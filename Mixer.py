@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from Stabilizer import *
 from utils import is_connected, is_power_of_two, find_best_cost, pauli_int_to_str
-from plotting.plot_mixers import draw_best_graphs, draw_mixer_graph, draw_family_of_valid_graphs, X0
+from plotting.plot_mixers import Plotter
 
 # TODO: Implement the "semi_restricted_suborbits" method.
 
@@ -248,12 +248,12 @@ if __name__ == '__main__':
     # B = [0, 1, 2, 3, 4, 5, 6, 7] # bB = 8, whole space, 8-orbit
     
     # nL = 4
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # nB = 5, example from the article
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # nB = 5, example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100] # nB = 6
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010] # nB = 7
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
-    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
-         0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
+    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
+    #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
     # nL = 5
     # B = [0b10011, 0b01100, 0b11000, 0b00011,
     #     0b01001, 0b10100, 0b00110, 0b01110] # nB = 8
@@ -345,15 +345,17 @@ if __name__ == '__main__':
     # """
     # """
     
+    plotter = Plotter(lxmixer) # Initialize the Plotter object with the LXMixer object.
+    
     # Draw family of valid graphs.
-    # draw_family_of_valid_graphs(lxmixer, lw=1.5, r=0.2, group_size=2)
+    # plotter.draw_family_of_valid_graphs(lw=1.5, r=0.2, group_size=2)
    
     # Draw the best mixer graph.
-    draw_best_graphs(lxmixer, r=0.15, lw =1.25)
+    plotter.draw_best_graphs(r=0.15, lw=1.25)
     
     # Draw specified orbit(s).
     # fig, ax = plt.subplots()
-    # draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], lxmixer, x=X0, r=0.1)
+    # plotter.draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], r=0.1)
     # """
     
     plt.show()
