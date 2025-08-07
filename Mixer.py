@@ -6,7 +6,7 @@ import math
 from tqdm import tqdm
 
 from Stabilizer import *
-from utils import is_connected, is_power_of_two, find_best_cost
+from utils import is_connected, is_power_of_two, find_best_cost, pauli_int_to_str
 from plotting.plot_mixers import Plotter
 
 # TODO: Finish implementing the "semi_restricted_suborbits" method. The current implementation runs fine, and even yields a lower cost than the
@@ -298,13 +298,12 @@ if __name__ == '__main__':
     # B = [0, 1, 2, 3, 4, 5, 6, 7] # bB = 8, whole space, 8-orbit
     
     # nL = 4
-    # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # nB = 5, example from the article
+    B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # nB = 5, example from the article
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100] # nB = 6
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010] # nB = 7
-    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
+    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
     #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
-    B = [0,1,2,3,4,5,6,7]
     # nL = 5
     # B = [0b10011, 0b01100, 0b11000, 0b00011,
     #     0b01001, 0b10100, 0b00110, 0b01110] # nB = 8
@@ -314,13 +313,12 @@ if __name__ == '__main__':
     #     0b01010, 0b01100, 0b10001, 
     #     0b10010, 0b10100, 0b11000] # nB = 15
     
-    print(f"\nB = {[f"{b:0{len(bin(max(B)))-2}b}" for b in B]}") # Print B in binary format.
+    print(f"\nB = [{" ,".join(f"|{b:0{len(bin(max(B)))-2}b}>" for b in B)}]") # Print B in binary format.
     
     # Initialize the LXMixer with the feasible set B and number of logical qubits nL.
     # lxmixer = LXMixer(B, 3)
-    lxmixer = LXMixer(B, 4, method="semi_restricted_suborbits")
+    lxmixer = LXMixer(B, 4, method="largest_orbits")
     # lxmixer = LXMixer(B, 4, method="all_suborbits")
-    # lxmixer = LXMixer(B, 4, method="largest_orbits")
     # lxmixer = LXMixer(B, 5)
 
     print("\nComputing family of valid graphs...")
@@ -332,7 +330,7 @@ if __name__ == '__main__':
 
     print("\nFamily of valid graphs:")
     for k, v in lxmixer.family_of_valid_graphs.items():
-        print(f"{k:0{lxmixer.nL}b} : {v}")
+        print(f"{pauli_int_to_str(k, lxmixer.nL)} : {v}")
 
     print("\nComputing all orbits...")
     start_time = time.time()
@@ -349,9 +347,8 @@ if __name__ == '__main__':
 
     print("\nOrbits (without projectors and costs):")
     for nodes, orbit in lxmixer.orbits.items():
-        print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}]")
-        for suborbit_nodes, suborbit in orbit.suborbits.items():
-            print(f"  {suborbit_nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in suborbit.Xs)}]")
+        print(f"{nodes} : [{', '.join(f'{pauli_int_to_str(X, lxmixer.nL)}' for X in orbit.Xs)}]")
+
     # """
     
     S = Stabilizer(lxmixer.B, lxmixer.nL, lxmixer.orbits) # Initialize the Stabilizer object with the feasible set B, number of logical qubits nL and orbits dictionary.
@@ -379,9 +376,7 @@ if __name__ == '__main__':
     
     print("\nOrbits with projectors and costs:")
     for nodes, orbit in lxmixer.orbits.items():
-        print(f"{nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in orbit.Xs)}], Zs = [{', '.join(f'{"+" if Z[0] == 1 else "-"}{Z[1]:0{lxmixer.nL}b}' for Z in orbit.Zs if len(Z) == 2)}], cost = {orbit.cost}")
-        for suborbit_nodes, suborbit in orbit.suborbits.items():
-            print(f"  {suborbit_nodes} : Xs = [{', '.join(f'{X:0{lxmixer.nL}b}' for X in suborbit.Xs)}], cost = {suborbit.cost}")
+        print(f"{nodes} : [{', '.join(f'{pauli_int_to_str(X, lxmixer.nL)}' for X in orbit.Xs)}], [{', '.join(f'{"+" if Z[0] == 1 else "-"}{pauli_int_to_str(Z[1], lxmixer.nL, "Z")}' for Z in orbit.Zs if len(Z) == 2)}], {orbit.cost}")
     
     print("\nFinding best mixer...")
     start_time = time.time()
@@ -393,13 +388,14 @@ if __name__ == '__main__':
     
     print(f"\nFound {len(best_Xs)} best combinations of orbits with cost {best_cost}.")
     print("\nBest mixer:")
-    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f"{x:0{lxmixer.nL}b}" for x in sub_Xs)}]" for sub_Xs in Xs)}]' for Xs in best_Xs)}]")
+    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f"{pauli_int_to_str(x, lxmixer.nL)}" for x in sub_Xs)}]" for sub_Xs in Xs)}]' for Xs in best_Xs)}]")
     print("\nBest projectors:")
-    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{z[1]:0{lxmixer.nL}b}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
+    print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f'{"+" if z[0] > 0 else "-"}{pauli_int_to_str(z[1], lxmixer.nL, "Z")}' for z in sub_Zs)}]" for sub_Zs in Zs)}]' for Zs in best_Zs)}]")    
    
     # """
     # """
-    plotter = Plotter(lxmixer)
+    
+    plotter = Plotter(lxmixer) # Initialize the Plotter object with the LXMixer object.
     
     # Draw family of valid graphs.
     # plotter.draw_family_of_valid_graphs(lw=1.5, r=0.2, group_size=2)
