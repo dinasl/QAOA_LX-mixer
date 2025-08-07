@@ -72,8 +72,6 @@ class LXMixer:
         Args:
             B (List[int]): Feasible set of bitstrings (binary int representations) from the computational basis.
             nL (int): Number of quibits.
-            digraph (bool): Whether to use directed graphs (default: False).
-            reduced (bool): Whether to use reduced graphs (default: True).
             sort (bool): Whether to sort the feasible set B (default: False).
         """
         self.setB(B, nL, sort)
@@ -306,7 +304,7 @@ if __name__ == '__main__':
     B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
     #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
-    
+    B = [0,1,2,3,4,5,6,7]
     # nL = 5
     # B = [0b10011, 0b01100, 0b11000, 0b00011,
     #     0b01001, 0b10100, 0b00110, 0b01110] # nB = 8
