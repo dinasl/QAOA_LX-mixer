@@ -146,8 +146,8 @@ class LXMixer:
         processed_nodes = set() # Set to store nodes that have already been associated with a non-trivial orbit.
         
         for seed in range(self.nB): # Iterate over each node in B as a seed node.
-            if seed in processed_nodes and self.method == "largest_orbits": # Skip if the seed node is already processed (unless wanting all suborbits).
-                continue
+            # if seed in processed_nodes and self.method == "largest_orbits": # Skip if the seed node is already processed (unless wanting all suborbits).
+            #     continue
             
             seed_Xs = list(self.node_connectors[seed].values()) # The |B|-1 logical X operators that connect to the seed node.
             stack = []
@@ -222,7 +222,7 @@ class LXMixer:
             self.group_suborbits()
     
     def group_suborbits(self):
-        for nodes, orbit in self.orbits.items():
+        for orbit in list(self.orbits.values()):
             unconnected_suborbits = {}
             for X_group in (combination for n in range(1, len(orbit.Xs)+1) for combination in combinations(orbit.Xs, n)):
                 unconnected_nodes = []
@@ -300,7 +300,7 @@ class LXMixer:
             self.best_Xs = [[self.orbits[orbit_nodes].Xs for orbit_nodes in combination] for combination in self.best_combinations]
             self.best_Zs = [[self.orbits[orbit_nodes].Zs for orbit_nodes in combination] for combination in self.best_combinations]
         return
-        
+
 # Standalone code, e.g. example usage and testing.
 if __name__ == '__main__':
     import time # For measuring execution time.
@@ -313,9 +313,9 @@ if __name__ == '__main__':
     
     # nL = 4
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011] # nB = 5, example from the article
-    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100] # nB = 6
+    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100] # nB = 6
     # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010] # nB = 7
-    # B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
+    B = [0b0000, 0b1111, 0b0001, 0b1101, 0b1110, 0b1100, 0b0010, 0b0011] # nB = 8, 8-orbit
     # B = [0b1110, 0b1100, 0b1001, 0b0100, 0b0011, 0b0000, 0b1111, 0b1011, 
     #      0b1101, 0b0110, 0b0010, 0b0101, 0b1000, 0b0001, 0b0111] # nB = 15
     # nL = 5
@@ -332,8 +332,8 @@ if __name__ == '__main__':
     # Initialize the LXMixer with the feasible set B and number of logical qubits nL.
     # lxmixer = LXMixer(B, 3)
     # lxmixer = LXMixer(B, 4)
-    lxmixer = LXMixer(B, 4, method="semi_restricted_suborbits")
-    # lxmixer = LXMixer(B, 4, method="all_suborbits")
+    # lxmixer = LXMixer(B, 4, method="semi_restricted_suborbits")
+    lxmixer = LXMixer(B, 4, method="all_suborbits")
     # lxmixer = LXMixer(B, 5)
 
     print("\nComputing family of valid graphs...")
@@ -406,6 +406,7 @@ if __name__ == '__main__':
     print("______________")
     
     print(f"\nFound {len(best_Xs)} best combinations of orbits with cost {best_cost}.")
+    print(f"Best combinations: {best_combinations}")
     print("\nBest mixer:")
     print(f"[{', '.join(f'[{", ".join(f"[{", ".join(f"{pauli_int_to_str(x, lxmixer.nL)}" for x in sub_Xs)}]" for sub_Xs in Xs)}]' for Xs in best_Xs)}]")
     print("\nBest projectors:")
@@ -424,7 +425,7 @@ if __name__ == '__main__':
     
     # Draw specified orbit(s).
     # fig, ax = plt.subplots()
-    # plotter.draw_mixer_graph(ax, [list(lxmixer.orbits.keys())[0]], [list(lxmixer.orbits.values())[0].Xs], r=0.1)
+    # plotter.draw_mixer_graph(ax, list(lxmixer.orbits.keys()), [orbit.Xs for orbit in list(lxmixer.orbits.values())], r=0.1)
     # """
     
     plt.show()
