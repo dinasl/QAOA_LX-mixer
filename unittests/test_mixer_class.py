@@ -28,7 +28,7 @@ class TestLXMixer(unittest.TestCase):
     
     def test_compute_all_orbits(self):
         correct_orbits = {
-            (0, 2, 3, 4) : [0b0111, 0b1010, 0b1101],
+            (0, 2, 3, 4) : [0b1101, 0b1010],
             (0, 1) : [0b0010],
             (1, 2) : [0b0101],
             (1, 3) : [0b1000],
@@ -48,7 +48,11 @@ class TestLXMixer(unittest.TestCase):
         }
         lxmixer.compute_all_orbits()
         
-        self.assertEqual(lxmixer.orbits, correct_orbits)
+        orbits = {}
+        for nodes, orbit in lxmixer.orbits.items():
+            orbits[nodes] = orbit.Xs
+        
+        self.assertEqual(orbits, correct_orbits)
 
 if __name__ == '__main__':
     unittest.main()

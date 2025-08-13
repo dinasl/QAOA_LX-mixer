@@ -68,20 +68,12 @@ class Stabilizer:
             list[int]: List of Pauli strings (int representation) that form the minimal generating set.
         """
         for nodes, orbit in self.orbit_dictionary.items():
-            #use seed to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
             #found the seed from the 0th element of the tuple, which corresponds to a state saved as a bin int in self.B 
-            #TODO reducing the orbit like this does NOT work (makes all the projectors equal????), 
-            k = int(math.log2(len(nodes)))
-            if k != len(orbit.Xs):
-                reduced_orbit_x = set((list(orbit.Xs))[:k])
-                # print("orbit Xs: ", orbit.Xs)
-                # print("reduced orbit Xs: ", reduced_orbit_x)
-            
-            """NB: the k stuff above is not in use"""
-            
             seed = self.B[nodes[0]]
-            G0 = [((-1 if (seed >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
             
+            #use seed to get G0 which is on the form G0 = {(+-1, ZII...), ...} where the z-string is on binary (int) form and Z is represented by 1 and I by 0
+            G0 = [((-1 if (seed >> (self.n - 1 - i)) & 1 else 1), 1 << (self.n - 1 - i)) for i in range(self.n)]
+
             #iteration process for algoritm 1
             for x_string in orbit.Xs: #TODO reduced_orbit_x:, orbit.Xs:
                 G0_elements = [t[1] for t in G0]    #selects all of the elements of G that is a z-string (without +-1)
@@ -104,7 +96,7 @@ class Stabilizer:
                     elements_included = len(G0_elements) - len(I_c) - 1
                 
                     I_d_2 = list(itertools.islice(itertools.combinations(I_d, 2), elements_included))
-                    I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]|G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
+                    I_d_2_Z = [(G0_signs[I_d_2[i][0]]*G0_signs[I_d_2[i][1]],G0_elements[I_d_2[i][0]]^G0_elements[I_d_2[i][1]]) for i in range(elements_included)]
                 else:
                     #TODO what happens if there is only 1 anti-commuting stabilizer? -> just add it to the list of commuting stabilizers?
                     I_d_2_Z = [] 
@@ -112,10 +104,12 @@ class Stabilizer:
                 #creates a list of tuples (+-1, Z-string) for commuting pairs  
                 I_c_Z = [(G0_signs[i], G0_elements[i]) for i in I_c]
 
-
                 G_new = I_c_Z + I_d_2_Z
+                if len(G_new) != (len(G0)-1):
+                    print("WARNING: G_new is not the same length as G0 - 1, this should not happen")
+                    print("G_new: ", G_new)
+                    print("G0: ", G0)
                 G0 = G_new
-            
             #finds the final minimal generating set and adds it to the list of minimal generating sets
             final_minimal_generating_set_1_orbit = G0 #removed list from list(G0) since it is already a list of tuples
             
@@ -173,6 +167,11 @@ class Stabilizer:
                 k = len(minimal_generating_set)
                 projector = []
 
+                #if we have an edge case where there are no minimal generating sets because |B| = 2^n, then we just return the identity projector
+                if k == 0:
+                    orbit.Zs = [(1,0)]  # Identity projector
+                    return
+               
                 signs, z_strings = zip(*minimal_generating_set)
                 signs = np.array(signs)
                 z_strings = np.array(z_strings)
